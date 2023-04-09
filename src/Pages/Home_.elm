@@ -1,6 +1,7 @@
 module Pages.Home_ exposing (Model, Msg, page)
 
 import Angle
+import Browser.Events
 import Effect exposing (Effect)
 import Html
 import Length
@@ -69,13 +70,13 @@ initialModel =
 
 
 type Msg
-    = UpdateFrame Time.Posix
+    = UpdateFrame Float
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        UpdateFrame timeStamp ->
+        UpdateFrame msSinceLastFrame ->
             ( { model
                 | world = Physics2d.World.update model.world
               }
@@ -85,7 +86,7 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Time.every 33 UpdateFrame
+    Browser.Events.onAnimationFrameDelta UpdateFrame
 
 
 view : Route.Route () -> Model -> View msg
