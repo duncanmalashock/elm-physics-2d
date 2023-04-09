@@ -74,9 +74,7 @@ regular { sides, radius } =
                     (\number ->
                         Quantity.multiplyBy number anglePerSide
                             |> Quantity.plus
-                                (Angle.turns
-                                    (0.25 + squareAngleAdjustment)
-                                )
+                                (Angle.turns squareAngleAdjustment)
                     )
 
         toVertex : Angle.Angle -> Point2d.Point2d Length.Meters TopLeft

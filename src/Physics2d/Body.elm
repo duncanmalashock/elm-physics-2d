@@ -21,6 +21,7 @@ import Physics2d.Circle
 import Physics2d.CoordinateSystem exposing (TopLeft)
 import Physics2d.Polygon
 import Point2d
+import Quantity
 import Vector2d
 
 
@@ -49,7 +50,7 @@ fromPolygon :
 fromPolygon { position, rotation, polygon } =
     Body
         { position = position
-        , rotation = rotation
+        , rotation = initialRotation rotation
         , shape = PolygonShape polygon
         }
 
@@ -63,13 +64,19 @@ fromCircle :
 fromCircle { position, rotation, radius } =
     Body
         { position = position
-        , rotation = rotation
+        , rotation = initialRotation rotation
         , shape =
             CircleShape
                 (Physics2d.Circle.new
                     { radius = radius }
                 )
         }
+
+
+initialRotation : Angle.Angle -> Angle.Angle
+initialRotation rotation =
+    rotation
+        |> Quantity.plus (Angle.turns 0.25)
 
 
 type alias View =
