@@ -2,6 +2,7 @@ module Physics2d.Body exposing
     ( Body
     , fromPolygon, fromCircle
     , update
+    , setVelocity, addVelocity
     , ShapeView(..)
     , view, View
     )
@@ -11,17 +12,20 @@ module Physics2d.Body exposing
 @docs Body
 @docs fromPolygon, fromCircle
 @docs update
+@docs setVelocity, addVelocity
 @docs ShapeView
 @docs view, View
 
 -}
 
 import Angle
+import AngularSpeed
 import Length
 import LineSegment2d
 import Physics2d.Circle
 import Physics2d.CoordinateSystem exposing (TopLeft)
 import Physics2d.Polygon
+import Physics2d.Time
 import Point2d
 import Quantity
 import Vector2d
@@ -39,7 +43,9 @@ type Shape
 type alias Internals =
     { shape : Shape
     , position : Point2d.Point2d Length.Meters TopLeft
+    , positionPrevious : Point2d.Point2d Length.Meters TopLeft
     , rotation : Angle.Angle
+    , rotationPrevious : Angle.Angle
     }
 
 
@@ -50,11 +56,12 @@ fromPolygon :
     }
     -> Body
 fromPolygon { position, rotation, polygon } =
-    Body
+    initialInternals
         { position = position
-        , rotation = initialRotation rotation
-        , shape = PolygonShape polygon
+        , rotation = rotation
         }
+        (PolygonShape polygon)
+        |> Body
 
 
 fromCircle :
@@ -64,35 +71,99 @@ fromCircle :
     }
     -> Body
 fromCircle { position, rotation, radius } =
-    Body
+    initialInternals
         { position = position
-        , rotation = initialRotation rotation
-        , shape =
-            CircleShape
-                (Physics2d.Circle.new
-                    { radius = radius }
-                )
+        , rotation = rotation
+        }
+        (CircleShape
+            (Physics2d.Circle.new
+                { radius = radius }
+            )
+        )
+        |> Body
+
+
+initialInternals :
+    { position : Point2d.Point2d Length.Meters TopLeft
+    , rotation : Angle.Angle
+    }
+    -> shape
+    ->
+        { position : Point2d.Point2d Length.Meters TopLeft
+        , positionPrevious : Point2d.Point2d Length.Meters TopLeft
+        , rotation : Angle.Angle
+        , rotationPrevious : Angle.Angle
+        , shape : shape
+        }
+initialInternals config shape =
+    let
+        initialRotation =
+            config.rotation
+                |> Quantity.plus (Angle.turns 0.25)
+    in
+    { position = config.position
+    , positionPrevious = config.position
+    , rotation = initialRotation
+    , rotationPrevious = initialRotation
+    , shape = shape
+    }
+
+
+setVelocity : Vector2d.Vector2d Length.Meters TopLeft -> Body -> Body
+setVelocity newVelocity (Body internals) =
+    Body
+        { internals
+            | positionPrevious =
+                internals.position
+                    |> Point2d.translateBy (Vector2d.reverse newVelocity)
         }
 
 
-initialRotation : Angle.Angle -> Angle.Angle
-initialRotation rotation =
-    rotation
-        |> Quantity.plus (Angle.turns 0.25)
+addVelocity : Vector2d.Vector2d Length.Meters TopLeft -> Body -> Body
+addVelocity velocityToAdd (Body internals) =
+    Body
+        { internals
+            | positionPrevious =
+                internals.positionPrevious
+                    |> Point2d.translateBy (Vector2d.reverse velocityToAdd)
+        }
 
 
 update : Body -> Body
-update (Body internals) =
+update ((Body internals) as body) =
+    let
+        rotationStep =
+            Angle.turns
+                (AngularSpeed.inTurnsPerSecond
+                    (angularSpeed body)
+                )
+
+        positionStep =
+            Vector2d.from internals.positionPrevious internals.position
+    in
     Body
         { internals
             | rotation =
                 internals.rotation
-                    |> Quantity.plus (Angle.turns 0.01)
+                    |> Quantity.plus rotationStep
+            , rotationPrevious =
+                internals.rotation
             , position =
                 internals.position
-                    |> Point2d.translateBy
-                        (Vector2d.meters 0.05 0.05)
+                    |> Point2d.translateBy positionStep
+            , positionPrevious =
+                internals.position
         }
+
+
+angularSpeed : Body -> AngularSpeed.AngularSpeed
+angularSpeed (Body internals) =
+    AngularSpeed.turnsPerSecond
+        (Quantity.minus
+            internals.rotationPrevious
+            internals.rotation
+            |> Angle.inTurns
+        )
 
 
 type alias View =

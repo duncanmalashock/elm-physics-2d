@@ -13,6 +13,7 @@ import Point2d
 import Route
 import Shared
 import Time
+import Vector2d
 import View exposing (View)
 
 
@@ -55,6 +56,7 @@ initialModel =
                             { radius = Length.meters 5
                             }
                     }
+                    |> Physics2d.Body.addVelocity (Vector2d.meters 0.1 0.1)
                 )
             |> Physics2d.World.addBody
                 (Physics2d.Body.fromCircle
@@ -70,13 +72,13 @@ initialModel =
 
 
 type Msg
-    = UpdateFrame Float
+    = UpdateFrame
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
     case msg of
-        UpdateFrame msSinceLastFrame ->
+        UpdateFrame ->
             ( { model
                 | world = Physics2d.World.update model.world
               }
@@ -86,7 +88,7 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Browser.Events.onAnimationFrameDelta UpdateFrame
+    Browser.Events.onAnimationFrameDelta (\timeElapsed -> UpdateFrame)
 
 
 view : Route.Route () -> Model -> View msg
