@@ -34,7 +34,10 @@ init =
             }
             |> Physics2d.World.addBody
                 (Physics2d.Body.fromPolygon
-                    { position = Point2d.xy (Length.meters 30) (Length.meters 30)
+                    { position =
+                        Point2d.xy
+                            (Length.meters 30)
+                            (Length.meters 30)
                     , rotation = Angle.turns 0.25
                     , polygon =
                         Physics2d.Polygon.triangle
