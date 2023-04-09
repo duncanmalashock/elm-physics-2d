@@ -1,4 +1,4 @@
-# elm-physics2d
+# elm-physics-2d
 
 A simple physics engine in [Elm](https://elm-lang.org) for games and simulations.
 
