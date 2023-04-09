@@ -1,6 +1,7 @@
 module Physics2d.Body exposing
     ( Body
     , fromPolygon, fromCircle
+    , update
     , ShapeView(..)
     , view, View
     )
@@ -9,6 +10,7 @@ module Physics2d.Body exposing
 
 @docs Body
 @docs fromPolygon, fromCircle
+@docs update
 @docs ShapeView
 @docs view, View
 
@@ -79,6 +81,20 @@ initialRotation rotation =
         |> Quantity.plus (Angle.turns 0.25)
 
 
+update : Body -> Body
+update (Body internals) =
+    Body
+        { internals
+            | rotation =
+                internals.rotation
+                    |> Quantity.plus (Angle.turns 0.01)
+            , position =
+                internals.position
+                    |> Point2d.translateBy
+                        (Vector2d.meters 0.05 0.05)
+        }
+
+
 type alias View =
     { position : Point2d.Point2d Length.Meters TopLeft
     , rotation : Angle.Angle
@@ -88,7 +104,10 @@ type alias View =
 
 type ShapeView
     = PolygonShapeView (List (Point2d.Point2d Length.Meters TopLeft))
-    | CircleShapeView { radius : Length.Length, position : Point2d.Point2d Length.Meters TopLeft }
+    | CircleShapeView
+        { radius : Length.Length
+        , position : Point2d.Point2d Length.Meters TopLeft
+        }
 
 
 view : Body -> View

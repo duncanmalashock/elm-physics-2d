@@ -1,6 +1,7 @@
 module Pages.Home_ exposing (Model, Msg, page)
 
 import Angle
+import Effect exposing (Effect)
 import Html
 import Length
 import Page exposing (Page)
@@ -8,15 +9,19 @@ import Physics2d.Body
 import Physics2d.Polygon
 import Physics2d.World
 import Point2d
+import Route
+import Shared
+import Time
 import View exposing (View)
 
 
-page : Page Model Msg
-page =
-    Page.sandbox
+page : Shared.Model -> Route.Route () -> Page Model Msg
+page shared route =
+    Page.new
         { init = init
         , update = update
-        , view = view
+        , subscriptions = subscriptions
+        , view = view route
         }
 
 
@@ -25,8 +30,13 @@ type alias Model =
     }
 
 
-init : Model
-init =
+init : () -> ( Model, Effect Msg )
+init () =
+    ( initialModel, Effect.none )
+
+
+initialModel : Model
+initialModel =
     { world =
         Physics2d.World.init
             { height = Length.meters 300
@@ -59,16 +69,27 @@ init =
 
 
 type Msg
-    = Msg
+    = UpdateFrame Time.Posix
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Effect Msg )
 update msg model =
-    model
+    case msg of
+        UpdateFrame timeStamp ->
+            ( { model
+                | world = Physics2d.World.update model.world
+              }
+            , Effect.none
+            )
 
 
-view : Model -> View msg
-view model =
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Time.every 33 UpdateFrame
+
+
+view : Route.Route () -> Model -> View msg
+view route model =
     { title = "Physics2D"
     , body = viewBody model
     }

@@ -72,8 +72,13 @@ addBody body (World internals) =
 
 
 update : World -> World
-update world =
-    world
+update (World internals) =
+    World
+        { internals
+            | bodies =
+                internals.bodies
+                    |> List.map Physics2d.Body.update
+        }
 
 
 viewSvg :
@@ -105,9 +110,7 @@ viewSvg { widthInPixels, heightInPixels } (World { dimensions, bodies }) =
             -> Svg.Svg msg
         polygonVerticesToSvg vertices =
             Geometry.Svg.polygon2d
-                [ Svg.Attributes.stroke "black"
-                , Svg.Attributes.strokeWidth "0.1"
-                , Svg.Attributes.fill "white"
+                [ Svg.Attributes.fill "#282828"
                 ]
                 (Polygon2d.singleLoop vertices)
 
@@ -118,9 +121,7 @@ viewSvg { widthInPixels, heightInPixels } (World { dimensions, bodies }) =
             -> Svg.Svg msg
         circleShapeViewToSvg circleShapeView =
             Geometry.Svg.circle2d
-                [ Svg.Attributes.stroke "black"
-                , Svg.Attributes.strokeWidth "0.1"
-                , Svg.Attributes.fill "white"
+                [ Svg.Attributes.fill "#282828"
                 ]
                 (Circle2d.withRadius circleShapeView.radius
                     circleShapeView.position
