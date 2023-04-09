@@ -17,6 +17,7 @@ module Physics2d.World exposing
 -}
 
 import Angle
+import Circle2d
 import Frame2d
 import Geometry.Svg
 import Html
@@ -96,6 +97,9 @@ viewSvg { widthInPixels, heightInPixels } (World { dimensions, bodies }) =
                 Physics2d.Body.PolygonShapeView vertices ->
                     [ polygonVerticesToSvg vertices ]
 
+                Physics2d.Body.CircleShapeView circleShapeView ->
+                    [ circleShapeViewToSvg circleShapeView ]
+
         polygonVerticesToSvg :
             List (Point2d.Point2d Length.Meters TopLeft)
             -> Svg.Svg msg
@@ -106,6 +110,21 @@ viewSvg { widthInPixels, heightInPixels } (World { dimensions, bodies }) =
                 , Svg.Attributes.fill "white"
                 ]
                 (Polygon2d.singleLoop vertices)
+
+        circleShapeViewToSvg :
+            { radius : Length.Length
+            , position : Point2d.Point2d Length.Meters TopLeft
+            }
+            -> Svg.Svg msg
+        circleShapeViewToSvg circleShapeView =
+            Geometry.Svg.circle2d
+                [ Svg.Attributes.stroke "black"
+                , Svg.Attributes.strokeWidth "0.1"
+                , Svg.Attributes.fill "white"
+                ]
+                (Circle2d.withRadius circleShapeView.radius
+                    circleShapeView.position
+                )
 
         pixelsPerMeter =
             Pixels.pixels 10

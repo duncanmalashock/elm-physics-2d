@@ -45,6 +45,16 @@ init =
                             }
                     }
                 )
+            |> Physics2d.World.addBody
+                (Physics2d.Body.fromCircle
+                    { position =
+                        Point2d.xy
+                            (Length.meters 40)
+                            (Length.meters 31.4)
+                    , rotation = Angle.turns 0
+                    , radius = Length.meters 4
+                    }
+                )
     }
 
 
