@@ -58,6 +58,14 @@ regular { sides, radius } =
         anglePerSide =
             Angle.turns (1 / Basics.toFloat sides)
 
+        squareAngleAdjustment : Float
+        squareAngleAdjustment =
+            if sides == 4 then
+                0.125
+
+            else
+                0
+
         angles : List Angle.Angle
         angles =
             List.range 0 (sides - 1)
@@ -65,6 +73,10 @@ regular { sides, radius } =
                 |> List.map
                     (\number ->
                         Quantity.multiplyBy number anglePerSide
+                            |> Quantity.plus
+                                (Angle.turns
+                                    (0.25 + squareAngleAdjustment)
+                                )
                     )
 
         toVertex : Angle.Angle -> Point2d.Point2d Length.Meters TopLeft

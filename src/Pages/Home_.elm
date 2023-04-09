@@ -38,7 +38,7 @@ init =
                         Point2d.xy
                             (Length.meters 30)
                             (Length.meters 30)
-                    , rotation = Angle.turns 0.25
+                    , rotation = Angle.turns 0
                     , polygon =
                         Physics2d.Polygon.triangle
                             { radius = Length.meters 5
