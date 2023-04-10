@@ -25,6 +25,7 @@ import Html
 import Html.Attributes
 import Length
 import LineSegment2d
+import List.Extra
 import Physics2d.CoordinateSystem exposing (TopLeft)
 import Physics2d.Object
 import Physics2d.Polygon
@@ -34,6 +35,7 @@ import Polygon2d
 import Quantity
 import Svg
 import Svg.Attributes
+import Task
 
 
 type World objectId
@@ -80,13 +82,27 @@ update :
              -> Physics2d.Object.Object
              -> Physics2d.Object.Object
             )
+    , collisionHandlers :
+        List
+            ( objectId -> objectId -> Bool
+            , ( objectId, Physics2d.Object.Object )
+              -> ( objectId, Physics2d.Object.Object )
+              -> msg
+            )
     , world : World objectId
     }
-    -> World objectId
-update { rules, world } =
-    world
-        |> applyRules rules
-        |> integrateObjects
+    -> ( World objectId, Cmd msg )
+update { rules, world, collisionHandlers } =
+    let
+        updatedWorld =
+            world
+                |> applyRules rules
+                |> integrateObjects
+
+        cmds =
+            applyCollisionHandlers collisionHandlers updatedWorld
+    in
+    ( updatedWorld, cmds )
 
 
 applyRules :
@@ -121,13 +137,66 @@ applyRule world rule objects =
         |> Dict.map (\id -> rule id world)
 
 
+applyCollisionHandlers :
+    List
+        ( objectId -> objectId -> Bool
+        , ( objectId, Physics2d.Object.Object )
+          -> ( objectId, Physics2d.Object.Object )
+          -> msg
+        )
+    -> World objectId
+    -> Cmd msg
+applyCollisionHandlers collisionHandlers (World internals) =
+    let
+        objectPairs =
+            Dict.toList internals.objects
+                |> List.Extra.uniquePairs
+    in
+    collisionHandlers
+        |> List.concatMap (applyCollisionHandler objectPairs)
+        |> Cmd.batch
+
+
+applyCollisionHandler :
+    List
+        ( ( objectId, Physics2d.Object.Object )
+        , ( objectId, Physics2d.Object.Object )
+        )
+    ->
+        ( objectId -> objectId -> Bool
+        , ( objectId, Physics2d.Object.Object )
+          -> ( objectId, Physics2d.Object.Object )
+          -> msg
+        )
+    -> List (Cmd msg)
+applyCollisionHandler objectPairs ( predicate, toMsg ) =
+    objectPairs
+        |> List.filter
+            (\( ( id1, object1 ), ( id2, object2 ) ) ->
+                predicate id1 id2
+            )
+        |> List.filterMap
+            (\( ( id1, object1 ), ( id2, object2 ) ) ->
+                if Physics2d.Object.areColliding object1 object2 then
+                    Just (toMsg ( id1, object1 ) ( id2, object2 ))
+
+                else
+                    Nothing
+            )
+        |> List.map
+            (\msg ->
+                Task.succeed msg
+                    |> Task.perform identity
+            )
+
+
 integrateObjects : World objectId -> World objectId
 integrateObjects (World internals) =
     World
         { internals
             | objects =
                 internals.objects
-                    |> Dict.map (\id -> Physics2d.Object.update)
+                    |> Dict.map (\id -> Physics2d.Object.integrate)
         }
 
 

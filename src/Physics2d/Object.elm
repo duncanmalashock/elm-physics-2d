@@ -1,9 +1,10 @@
 module Physics2d.Object exposing
     ( Object
     , fromPolygon, fromCircle
-    , update
     , velocity, setVelocity, addVelocity
     , setRotation
+    , integrate
+    , areColliding
     , ShapeView(..)
     , view, View
     )
@@ -11,10 +12,31 @@ module Physics2d.Object exposing
 {-|
 
 @docs Object
+
+
+# Constructors
+
 @docs fromPolygon, fromCircle
-@docs update
+
+
+# Applying changes
+
 @docs velocity, setVelocity, addVelocity
 @docs setRotation
+
+
+# Integration
+
+@docs integrate
+
+
+# Collision
+
+@docs areColliding
+
+
+# View
+
 @docs ShapeView
 @docs view, View
 
@@ -49,6 +71,26 @@ type alias Internals =
     , rotation : Angle.Angle
     , rotationPrevious : Angle.Angle
     }
+
+
+areColliding : Object -> Object -> Bool
+areColliding (Object internals1) (Object internals2) =
+    case ( internals1.shape, internals2.shape ) of
+        ( CircleShape circle1, CircleShape circle2 ) ->
+            let
+                distanceBetweenCenters =
+                    Point2d.distanceFrom internals1.position internals2.position
+
+                radiusSum =
+                    Quantity.sum
+                        [ Physics2d.Circle.radius circle1
+                        , Physics2d.Circle.radius circle2
+                        ]
+            in
+            Quantity.lessThanOrEqualTo radiusSum distanceBetweenCenters
+
+        _ ->
+            False
 
 
 fromPolygon :
@@ -143,8 +185,8 @@ setRotation newRotation (Object internals) =
         }
 
 
-update : Object -> Object
-update (Object internals) =
+integrate : Object -> Object
+integrate (Object internals) =
     let
         angularSpeed : AngularSpeed.AngularSpeed
         angularSpeed =
