@@ -72,12 +72,62 @@ addObject objectId object (World internals) =
         }
 
 
-update : World objectId -> World objectId
-update (World internals) =
+update :
+    { rules :
+        List
+            (objectId
+             -> World objectId
+             -> Physics2d.Object.Object
+             -> Physics2d.Object.Object
+            )
+    , world : World objectId
+    }
+    -> World objectId
+update { rules, world } =
+    world
+        |> applyRules rules
+        |> integrateObjects
+
+
+applyRules :
+    List
+        (objectId
+         -> World objectId
+         -> Physics2d.Object.Object
+         -> Physics2d.Object.Object
+        )
+    -> World objectId
+    -> World objectId
+applyRules rules (World internals) =
     World
         { internals
             | objects =
-                Dict.map (\id -> Physics2d.Object.update) internals.objects
+                List.foldl (applyRule (World internals)) internals.objects rules
+        }
+
+
+applyRule :
+    World objectId
+    ->
+        (objectId
+         -> World objectId
+         -> Physics2d.Object.Object
+         -> Physics2d.Object.Object
+        )
+    -> Dict objectId Physics2d.Object.Object
+    -> Dict objectId Physics2d.Object.Object
+applyRule world rule objects =
+    objects
+        |> Dict.map (\id -> rule id world)
+
+
+integrateObjects : World objectId -> World objectId
+integrateObjects (World internals) =
+    World
+        { internals
+            | objects =
+                internals.objects
+                    |> Dict.map (\id -> Physics2d.Object.update)
         }
 
 

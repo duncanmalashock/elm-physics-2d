@@ -2,7 +2,7 @@ module Physics2d.Object exposing
     ( Object
     , fromPolygon, fromCircle
     , update
-    , setVelocity, addVelocity
+    , velocity, setVelocity, addVelocity
     , ShapeView(..)
     , view, View
     )
@@ -12,7 +12,7 @@ module Physics2d.Object exposing
 @docs Object
 @docs fromPolygon, fromCircle
 @docs update
-@docs setVelocity, addVelocity
+@docs velocity, setVelocity, addVelocity
 @docs ShapeView
 @docs view, View
 
@@ -107,6 +107,11 @@ initialInternals config shape =
     , rotationPrevious = initialRotation
     , shape = shape
     }
+
+
+velocity : Object -> Vector2d.Vector2d Length.Meters TopLeft
+velocity (Object internals) =
+    Vector2d.from internals.positionPrevious internals.position
 
 
 setVelocity : Vector2d.Vector2d Length.Meters TopLeft -> Object -> Object

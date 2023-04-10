@@ -10,6 +10,7 @@ import Physics2d.Object
 import Physics2d.Polygon
 import Physics2d.World
 import Point2d
+import Quantity
 import Route
 import Shared
 import Time
@@ -62,6 +63,8 @@ initialModel =
                             { radius = Length.meters 3
                             }
                     }
+                    |> Physics2d.Object.setVelocity
+                        (Vector2d.xy (Length.meters 0) (Length.meters 0.2))
                 )
             |> Physics2d.World.addObject
                 Circle
@@ -69,10 +72,12 @@ initialModel =
                     { position =
                         Point2d.xy
                             (Length.meters 40)
-                            (Length.meters 31.4)
+                            (Length.meters 30.5)
                     , rotation = Angle.turns 0
                     , radius = Length.meters 2.5
                     }
+                    |> Physics2d.Object.setVelocity
+                        (Vector2d.xy (Length.meters 0) (Length.meters 0.2))
                 )
     }
 
@@ -86,10 +91,36 @@ update msg model =
     case msg of
         UpdateFrame ->
             ( { model
-                | world = Physics2d.World.update model.world
+                | world =
+                    Physics2d.World.update
+                        { rules =
+                            [ applyFrictionToTriangle
+                            ]
+                        , world = model.world
+                        }
               }
             , Effect.none
             )
+
+
+applyFrictionToTriangle :
+    ObjectId
+    -> Physics2d.World.World ObjectId
+    -> Physics2d.Object.Object
+    -> Physics2d.Object.Object
+applyFrictionToTriangle id world object =
+    case id of
+        Triangle ->
+            Physics2d.Object.addVelocity
+                (object
+                    |> Physics2d.Object.velocity
+                    |> Vector2d.reverse
+                    |> Vector2d.scaleBy 0.01
+                )
+                object
+
+        _ ->
+            object
 
 
 subscriptions : Model -> Sub Msg
