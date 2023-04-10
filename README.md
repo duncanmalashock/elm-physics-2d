@@ -9,7 +9,8 @@ A simple physics engine in [Elm](https://elm-lang.org) for games and simulations
 - [x] Animate movement and rotation
 - [x] Set velocity and apply forces
 - [x] Friction and maximum velocity
-- [ ] Collision detection
+- [ ] Collision detection for circles
+- [ ] Collision detection for polygons
 - [ ] Collision response (removal)
 - [ ] Collision response (elastic)
 - [ ] Collision response (custom)
