@@ -6,7 +6,7 @@ import Effect exposing (Effect)
 import Html
 import Length
 import Page exposing (Page)
-import Physics2d.Body
+import Physics2d.Object
 import Physics2d.Polygon
 import Physics2d.World
 import Point2d
@@ -28,11 +28,11 @@ page shared route =
 
 
 type alias Model =
-    { world : Physics2d.World.World BodyId
+    { world : Physics2d.World.World ObjectId
     }
 
 
-type BodyId
+type ObjectId
     = Triangle
     | Circle
 
@@ -49,9 +49,9 @@ initialModel =
             { height = Length.meters 300
             , width = Length.meters 300
             }
-            |> Physics2d.World.addBody
+            |> Physics2d.World.addObject
                 Triangle
-                (Physics2d.Body.fromPolygon
+                (Physics2d.Object.fromPolygon
                     { position =
                         Point2d.xy
                             (Length.meters 30)
@@ -63,9 +63,9 @@ initialModel =
                             }
                     }
                 )
-            |> Physics2d.World.addBody
+            |> Physics2d.World.addObject
                 Circle
-                (Physics2d.Body.fromCircle
+                (Physics2d.Object.fromCircle
                     { position =
                         Point2d.xy
                             (Length.meters 40)
@@ -100,13 +100,9 @@ subscriptions model =
 view : Route.Route () -> Model -> View msg
 view route model =
     { title = "Physics2D"
-    , body = viewBody model
+    , body =
+        [ Physics2d.World.viewSvg
+            { widthInPixels = 600, heightInPixels = 600 }
+            model.world
+        ]
     }
-
-
-viewBody : Model -> List (Html.Html msg)
-viewBody model =
-    [ Physics2d.World.viewSvg
-        { widthInPixels = 600, heightInPixels = 600 }
-        model.world
-    ]

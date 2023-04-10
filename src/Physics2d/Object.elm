@@ -1,5 +1,5 @@
-module Physics2d.Body exposing
-    ( Body
+module Physics2d.Object exposing
+    ( Object
     , fromPolygon, fromCircle
     , update
     , setVelocity, addVelocity
@@ -9,7 +9,7 @@ module Physics2d.Body exposing
 
 {-|
 
-@docs Body
+@docs Object
 @docs fromPolygon, fromCircle
 @docs update
 @docs setVelocity, addVelocity
@@ -31,8 +31,8 @@ import Quantity
 import Vector2d
 
 
-type Body
-    = Body Internals
+type Object
+    = Object Internals
 
 
 type Shape
@@ -54,14 +54,14 @@ fromPolygon :
     , rotation : Angle.Angle
     , polygon : Physics2d.Polygon.Polygon
     }
-    -> Body
+    -> Object
 fromPolygon { position, rotation, polygon } =
     initialInternals
         { position = position
         , rotation = rotation
         }
         (PolygonShape polygon)
-        |> Body
+        |> Object
 
 
 fromCircle :
@@ -69,7 +69,7 @@ fromCircle :
     , rotation : Angle.Angle
     , radius : Length.Length
     }
-    -> Body
+    -> Object
 fromCircle { position, rotation, radius } =
     initialInternals
         { position = position
@@ -80,7 +80,7 @@ fromCircle { position, rotation, radius } =
                 { radius = radius }
             )
         )
-        |> Body
+        |> Object
 
 
 initialInternals :
@@ -109,9 +109,9 @@ initialInternals config shape =
     }
 
 
-setVelocity : Vector2d.Vector2d Length.Meters TopLeft -> Body -> Body
-setVelocity newVelocity (Body internals) =
-    Body
+setVelocity : Vector2d.Vector2d Length.Meters TopLeft -> Object -> Object
+setVelocity newVelocity (Object internals) =
+    Object
         { internals
             | positionPrevious =
                 internals.position
@@ -119,9 +119,9 @@ setVelocity newVelocity (Body internals) =
         }
 
 
-addVelocity : Vector2d.Vector2d Length.Meters TopLeft -> Body -> Body
-addVelocity velocityToAdd (Body internals) =
-    Body
+addVelocity : Vector2d.Vector2d Length.Meters TopLeft -> Object -> Object
+addVelocity velocityToAdd (Object internals) =
+    Object
         { internals
             | positionPrevious =
                 internals.positionPrevious
@@ -129,8 +129,8 @@ addVelocity velocityToAdd (Body internals) =
         }
 
 
-update : Body -> Body
-update ((Body internals) as body) =
+update : Object -> Object
+update (Object internals) =
     let
         angularSpeed : AngularSpeed.AngularSpeed
         angularSpeed =
@@ -150,7 +150,7 @@ update ((Body internals) as body) =
         positionStep =
             Vector2d.from internals.positionPrevious internals.position
     in
-    Body
+    Object
         { internals
             | rotation =
                 internals.rotation
@@ -180,8 +180,8 @@ type ShapeView
         }
 
 
-view : Body -> View
-view (Body internals) =
+view : Object -> View
+view (Object internals) =
     { position = internals.position
     , rotation = internals.rotation
     , shape = toShapeView internals

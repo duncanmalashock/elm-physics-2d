@@ -1,7 +1,7 @@
 module Physics2d.World exposing
     ( World
     , init
-    , addBody
+    , addObject
     , update
     , viewSvg
     )
@@ -10,7 +10,7 @@ module Physics2d.World exposing
 
 @docs World
 @docs init
-@docs addBody
+@docs addObject
 @docs update
 @docs viewSvg
 
@@ -25,8 +25,8 @@ import Html
 import Html.Attributes
 import Length
 import LineSegment2d
-import Physics2d.Body
 import Physics2d.CoordinateSystem exposing (TopLeft)
+import Physics2d.Object
 import Physics2d.Polygon
 import Pixels
 import Point2d
@@ -36,16 +36,16 @@ import Svg
 import Svg.Attributes
 
 
-type World bodyId
-    = World (Internals bodyId)
+type World objectId
+    = World (Internals objectId)
 
 
-type alias Internals bodyId =
+type alias Internals objectId =
     { dimensions :
         { x : Length.Length
         , y : Length.Length
         }
-    , bodies : Dict bodyId Physics2d.Body.Body
+    , objects : Dict objectId Physics2d.Object.Object
     }
 
 
@@ -53,39 +53,39 @@ init :
     { width : Length.Length
     , height : Length.Length
     }
-    -> World bodyId
+    -> World objectId
 init { width, height } =
     World
         { dimensions =
             { x = width
             , y = height
             }
-        , bodies = Dict.empty
+        , objects = Dict.empty
         }
 
 
-addBody : bodyId -> Physics2d.Body.Body -> World bodyId -> World bodyId
-addBody bodyId body (World internals) =
+addObject : objectId -> Physics2d.Object.Object -> World objectId -> World objectId
+addObject objectId object (World internals) =
     World
         { internals
-            | bodies = Dict.insert bodyId body internals.bodies
+            | objects = Dict.insert objectId object internals.objects
         }
 
 
-update : World bodyId -> World bodyId
+update : World objectId -> World objectId
 update (World internals) =
     World
         { internals
-            | bodies =
-                Dict.map (\id -> Physics2d.Body.update) internals.bodies
+            | objects =
+                Dict.map (\id -> Physics2d.Object.update) internals.objects
         }
 
 
 viewSvg :
     { widthInPixels : Float, heightInPixels : Float }
-    -> World bodyId
+    -> World objectId
     -> Html.Html msg
-viewSvg { widthInPixels, heightInPixels } (World { dimensions, bodies }) =
+viewSvg { widthInPixels, heightInPixels } (World { dimensions, objects }) =
     let
         topLeftFrame =
             Frame2d.atPoint (Point2d.pixels 0 heightInPixels)
@@ -93,18 +93,18 @@ viewSvg { widthInPixels, heightInPixels } (World { dimensions, bodies }) =
 
         svgOutput : List (Svg.Svg msg)
         svgOutput =
-            bodies
+            objects
                 |> Dict.values
-                |> List.map Physics2d.Body.view
-                |> List.concatMap bodyViewToSvg
+                |> List.map Physics2d.Object.view
+                |> List.concatMap objectViewToSvg
 
-        bodyViewToSvg : Physics2d.Body.View -> List (Svg.Svg msg)
-        bodyViewToSvg body =
-            case body.shape of
-                Physics2d.Body.PolygonShapeView vertices ->
+        objectViewToSvg : Physics2d.Object.View -> List (Svg.Svg msg)
+        objectViewToSvg object =
+            case object.shape of
+                Physics2d.Object.PolygonShapeView vertices ->
                     [ polygonVerticesToSvg vertices ]
 
-                Physics2d.Body.CircleShapeView circleShapeView ->
+                Physics2d.Object.CircleShapeView circleShapeView ->
                     [ circleShapeViewToSvg circleShapeView ]
 
         polygonVerticesToSvg :
