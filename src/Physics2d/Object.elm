@@ -3,6 +3,7 @@ module Physics2d.Object exposing
     , fromPolygon, fromCircle
     , update
     , velocity, setVelocity, addVelocity
+    , setRotation
     , ShapeView(..)
     , view, View
     )
@@ -13,6 +14,7 @@ module Physics2d.Object exposing
 @docs fromPolygon, fromCircle
 @docs update
 @docs velocity, setVelocity, addVelocity
+@docs setRotation
 @docs ShapeView
 @docs view, View
 
@@ -51,14 +53,13 @@ type alias Internals =
 
 fromPolygon :
     { position : Point2d.Point2d Length.Meters TopLeft
-    , rotation : Angle.Angle
     , polygon : Physics2d.Polygon.Polygon
     }
     -> Object
-fromPolygon { position, rotation, polygon } =
+fromPolygon { position, polygon } =
     initialInternals
         { position = position
-        , rotation = rotation
+        , rotation = Angle.turns 0
         }
         (PolygonShape polygon)
         |> Object
@@ -66,14 +67,13 @@ fromPolygon { position, rotation, polygon } =
 
 fromCircle :
     { position : Point2d.Point2d Length.Meters TopLeft
-    , rotation : Angle.Angle
     , radius : Length.Length
     }
     -> Object
-fromCircle { position, rotation, radius } =
+fromCircle { position, radius } =
     initialInternals
         { position = position
-        , rotation = rotation
+        , rotation = Angle.turns 0
         }
         (CircleShape
             (Physics2d.Circle.new
@@ -131,6 +131,15 @@ addVelocity velocityToAdd (Object internals) =
             | positionPrevious =
                 internals.positionPrevious
                     |> Point2d.translateBy (Vector2d.reverse velocityToAdd)
+        }
+
+
+setRotation : Angle.Angle -> Object -> Object
+setRotation newRotation (Object internals) =
+    Object
+        { internals
+            | rotation = newRotation
+            , rotationPrevious = newRotation
         }
 
 

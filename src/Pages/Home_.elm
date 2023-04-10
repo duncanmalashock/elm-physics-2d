@@ -57,7 +57,6 @@ initialModel =
                         Point2d.xy
                             (Length.meters 30)
                             (Length.meters 30)
-                    , rotation = Angle.turns 0
                     , polygon =
                         Physics2d.Polygon.triangle
                             { radius = Length.meters 3
@@ -73,7 +72,6 @@ initialModel =
                         Point2d.xy
                             (Length.meters 40)
                             (Length.meters 30.5)
-                    , rotation = Angle.turns 0
                     , radius = Length.meters 2.5
                     }
                     |> Physics2d.Object.setVelocity
@@ -94,7 +92,8 @@ update msg model =
                 | world =
                     Physics2d.World.update
                         { rules =
-                            [ applyFrictionToTriangle
+                            [ applyGravity
+                            , applyFrictionToTriangle
                             ]
                         , world = model.world
                         }
@@ -111,16 +110,30 @@ applyFrictionToTriangle :
 applyFrictionToTriangle id world object =
     case id of
         Triangle ->
-            Physics2d.Object.addVelocity
-                (object
-                    |> Physics2d.Object.velocity
-                    |> Vector2d.reverse
-                    |> Vector2d.scaleBy 0.01
-                )
-                object
+            object
+                |> Physics2d.Object.addVelocity
+                    (object
+                        |> Physics2d.Object.velocity
+                        |> Vector2d.reverse
+                        |> Vector2d.scaleBy 0.02
+                    )
 
         _ ->
             object
+
+
+applyGravity :
+    ObjectId
+    -> Physics2d.World.World ObjectId
+    -> Physics2d.Object.Object
+    -> Physics2d.Object.Object
+applyGravity id world object =
+    object
+        |> Physics2d.Object.addVelocity
+            (Vector2d.xy
+                (Length.meters 0)
+                (Length.meters -0.005)
+            )
 
 
 subscriptions : Model -> Sub Msg
