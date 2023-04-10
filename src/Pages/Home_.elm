@@ -56,7 +56,7 @@ initialModel =
                             { radius = Length.meters 5
                             }
                     }
-                    |> Physics2d.Body.addVelocity (Vector2d.meters 0.1 0.1)
+                    |> Physics2d.Body.addVelocity (Vector2d.meters 0.05 0.05)
                 )
             |> Physics2d.World.addBody
                 (Physics2d.Body.fromCircle

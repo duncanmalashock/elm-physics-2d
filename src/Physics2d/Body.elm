@@ -132,12 +132,21 @@ addVelocity velocityToAdd (Body internals) =
 update : Body -> Body
 update ((Body internals) as body) =
     let
-        rotationStep =
-            Angle.turns
-                (AngularSpeed.inTurnsPerSecond
-                    (angularSpeed body)
+        angularSpeed : AngularSpeed.AngularSpeed
+        angularSpeed =
+            AngularSpeed.turnsPerSecond
+                (Quantity.minus
+                    internals.rotationPrevious
+                    internals.rotation
+                    |> Angle.inTurns
                 )
 
+        rotationStep : Angle.Angle
+        rotationStep =
+            Angle.turns
+                (AngularSpeed.inTurnsPerSecond angularSpeed)
+
+        positionStep : Vector2d.Vector2d Length.Meters TopLeft
         positionStep =
             Vector2d.from internals.positionPrevious internals.position
     in
@@ -154,16 +163,6 @@ update ((Body internals) as body) =
             , positionPrevious =
                 internals.position
         }
-
-
-angularSpeed : Body -> AngularSpeed.AngularSpeed
-angularSpeed (Body internals) =
-    AngularSpeed.turnsPerSecond
-        (Quantity.minus
-            internals.rotationPrevious
-            internals.rotation
-            |> Angle.inTurns
-        )
 
 
 type alias View =
