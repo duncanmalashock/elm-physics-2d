@@ -17,6 +17,7 @@ module Physics2d.World exposing
 -}
 
 import Angle
+import AssocList as Dict exposing (Dict)
 import Circle2d
 import Frame2d
 import Geometry.Svg
@@ -35,16 +36,16 @@ import Svg
 import Svg.Attributes
 
 
-type World
-    = World Internals
+type World bodyId
+    = World (Internals bodyId)
 
 
-type alias Internals =
+type alias Internals bodyId =
     { dimensions :
         { x : Length.Length
         , y : Length.Length
         }
-    , bodies : List Physics2d.Body.Body
+    , bodies : Dict bodyId Physics2d.Body.Body
     }
 
 
@@ -52,38 +53,37 @@ init :
     { width : Length.Length
     , height : Length.Length
     }
-    -> World
+    -> World bodyId
 init { width, height } =
     World
         { dimensions =
             { x = width
             , y = height
             }
-        , bodies = []
+        , bodies = Dict.empty
         }
 
 
-addBody : Physics2d.Body.Body -> World -> World
-addBody body (World internals) =
+addBody : bodyId -> Physics2d.Body.Body -> World bodyId -> World bodyId
+addBody bodyId body (World internals) =
     World
         { internals
-            | bodies = body :: internals.bodies
+            | bodies = Dict.insert bodyId body internals.bodies
         }
 
 
-update : World -> World
+update : World bodyId -> World bodyId
 update (World internals) =
     World
         { internals
             | bodies =
-                internals.bodies
-                    |> List.map Physics2d.Body.update
+                Dict.map (\id -> Physics2d.Body.update) internals.bodies
         }
 
 
 viewSvg :
     { widthInPixels : Float, heightInPixels : Float }
-    -> World
+    -> World bodyId
     -> Html.Html msg
 viewSvg { widthInPixels, heightInPixels } (World { dimensions, bodies }) =
     let
@@ -93,7 +93,9 @@ viewSvg { widthInPixels, heightInPixels } (World { dimensions, bodies }) =
 
         svgOutput : List (Svg.Svg msg)
         svgOutput =
-            List.map Physics2d.Body.view bodies
+            bodies
+                |> Dict.values
+                |> List.map Physics2d.Body.view
                 |> List.concatMap bodyViewToSvg
 
         bodyViewToSvg : Physics2d.Body.View -> List (Svg.Svg msg)

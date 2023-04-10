@@ -28,8 +28,13 @@ page shared route =
 
 
 type alias Model =
-    { world : Physics2d.World.World
+    { world : Physics2d.World.World BodyId
     }
+
+
+type BodyId
+    = Triangle
+    | Circle
 
 
 init : () -> ( Model, Effect Msg )
@@ -45,6 +50,7 @@ initialModel =
             , width = Length.meters 300
             }
             |> Physics2d.World.addBody
+                Triangle
                 (Physics2d.Body.fromPolygon
                     { position =
                         Point2d.xy
@@ -53,19 +59,19 @@ initialModel =
                     , rotation = Angle.turns 0
                     , polygon =
                         Physics2d.Polygon.triangle
-                            { radius = Length.meters 5
+                            { radius = Length.meters 3
                             }
                     }
-                    |> Physics2d.Body.addVelocity (Vector2d.meters 0.05 0.05)
                 )
             |> Physics2d.World.addBody
+                Circle
                 (Physics2d.Body.fromCircle
                     { position =
                         Point2d.xy
                             (Length.meters 40)
                             (Length.meters 31.4)
                     , rotation = Angle.turns 0
-                    , radius = Length.meters 4
+                    , radius = Length.meters 2.5
                     }
                 )
     }

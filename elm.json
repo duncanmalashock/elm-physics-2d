@@ -14,9 +14,11 @@
             "elm/svg": "1.0.1",
             "elm/time": "1.0.0",
             "elm/url": "1.0.0",
+            "erlandsona/assoc-set": "1.1.0",
             "ianmackenzie/elm-geometry": "3.9.1",
             "ianmackenzie/elm-geometry-svg": "3.0.0",
-            "ianmackenzie/elm-units": "2.9.0"
+            "ianmackenzie/elm-units": "2.9.0",
+            "pzp1997/assoc-list": "1.0.0"
         },
         "indirect": {
             "elm/random": "1.0.0",
