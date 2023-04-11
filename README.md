@@ -11,6 +11,6 @@ A simple physics engine in [Elm](https://elm-lang.org) for games and simulations
 - [x] Friction and maximum velocity
 - [x] Collision detection for circles
 - [ ] Collision detection for polygons
-- [ ] Collision response (removal)
+- [x] Collision response (removal)
 - [ ] Collision response (elastic)
-- [ ] Collision response (custom)
+- [x] Collision response (custom)

@@ -55,24 +55,24 @@ initialModel =
                 (Physics2d.Object.fromCircle
                     { position =
                         Point2d.xy
+                            (Length.meters 10)
                             (Length.meters 30)
-                            (Length.meters 30)
-                    , radius = Length.meters 2.5
+                    , radius = Length.meters 1
                     }
                     |> Physics2d.Object.setVelocity
-                        (Vector2d.xy (Length.meters 0) (Length.meters 0.2))
+                        (Vector2d.xy (Length.meters 0.5) (Length.meters 0.2))
                 )
             |> Physics2d.World.addObject
                 Circle2
                 (Physics2d.Object.fromCircle
                     { position =
                         Point2d.xy
+                            (Length.meters 50)
                             (Length.meters 30)
-                            (Length.meters 40)
-                    , radius = Length.meters 2.5
+                    , radius = Length.meters 1
                     }
                     |> Physics2d.Object.setVelocity
-                        (Vector2d.xy (Length.meters 0) (Length.meters 0.2))
+                        (Vector2d.xy (Length.meters -0.5) (Length.meters 0.2))
                 )
     }
 
@@ -91,7 +91,6 @@ update msg model =
                     Physics2d.World.update
                         { rules =
                             [ applyGravity
-                            , applyFrictionToCircle1
                             ]
                         , collisionHandlers =
                             [ ( areBothCircles, CirclesCollided )
@@ -107,7 +106,14 @@ update msg model =
             )
 
         CirclesCollided ( id1, object1 ) ( id2, object2 ) ->
-            ( model, Effect.none )
+            ( { model
+                | world =
+                    model.world
+                        |> Physics2d.World.removeObject id1
+                        |> Physics2d.World.removeObject id2
+              }
+            , Effect.none
+            )
 
 
 areBothCircles : ObjectId -> ObjectId -> Bool
@@ -121,26 +127,6 @@ areBothCircles id1 id2 =
 
         _ ->
             False
-
-
-applyFrictionToCircle1 :
-    ObjectId
-    -> Physics2d.World.World ObjectId
-    -> Physics2d.Object.Object
-    -> Physics2d.Object.Object
-applyFrictionToCircle1 id world object =
-    case id of
-        Circle1 ->
-            object
-                |> Physics2d.Object.addVelocity
-                    (object
-                        |> Physics2d.Object.velocity
-                        |> Vector2d.reverse
-                        |> Vector2d.scaleBy 0.02
-                    )
-
-        _ ->
-            object
 
 
 applyGravity :

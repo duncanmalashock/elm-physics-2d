@@ -1,7 +1,7 @@
 module Physics2d.World exposing
     ( World
     , init
-    , addObject
+    , addObject, removeObject
     , update
     , viewSvg
     )
@@ -10,7 +10,7 @@ module Physics2d.World exposing
 
 @docs World
 @docs init
-@docs addObject
+@docs addObject, removeObject
 @docs update
 @docs viewSvg
 
@@ -71,6 +71,14 @@ addObject objectId object (World internals) =
     World
         { internals
             | objects = Dict.insert objectId object internals.objects
+        }
+
+
+removeObject : objectId -> World objectId -> World objectId
+removeObject objectId (World internals) =
+    World
+        { internals
+            | objects = Dict.remove objectId internals.objects
         }
 
 
