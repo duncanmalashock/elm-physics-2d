@@ -66,11 +66,16 @@ init { width, height } =
         }
 
 
-addObject : objectId -> Physics2d.Object.Object -> World objectId -> World objectId
-addObject objectId object (World internals) =
+addObject :
+    { id : objectId
+    , object : Physics2d.Object.Object
+    }
+    -> World objectId
+    -> World objectId
+addObject { id, object } (World internals) =
     World
         { internals
-            | objects = Dict.insert objectId object internals.objects
+            | objects = Dict.insert id object internals.objects
         }
 
 

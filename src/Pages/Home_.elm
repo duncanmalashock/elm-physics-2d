@@ -34,47 +34,48 @@ type alias Model =
 
 
 type ObjectId
-    = Circle1
-    | Circle2
+    = Circle Int
 
 
 init : () -> ( Model, Effect Msg )
 init () =
-    ( initialModel, Effect.none )
+    let
+        circle1 : Physics2d.Object.Object
+        circle1 =
+            Physics2d.Object.fromCircle
+                { position =
+                    Point2d.xy (Length.meters 10) (Length.meters 30)
+                , radius = Length.meters 1
+                }
+                |> Physics2d.Object.setVelocity
+                    (Vector2d.xy (Length.meters 0.05) (Length.meters 0.2))
 
-
-initialModel : Model
-initialModel =
-    { world =
-        Physics2d.World.init
-            { height = Length.meters 300
-            , width = Length.meters 300
-            }
-            |> Physics2d.World.addObject
-                Circle1
-                (Physics2d.Object.fromCircle
-                    { position =
-                        Point2d.xy
-                            (Length.meters 10)
-                            (Length.meters 30)
-                    , radius = Length.meters 1
+        circle2 : Physics2d.Object.Object
+        circle2 =
+            Physics2d.Object.fromCircle
+                { position =
+                    Point2d.xy (Length.meters 50) (Length.meters 30)
+                , radius = Length.meters 1
+                }
+                |> Physics2d.Object.setVelocity
+                    (Vector2d.xy (Length.meters -0.05) (Length.meters 0.2))
+    in
+    ( { world =
+            Physics2d.World.init
+                { height = Length.meters 300
+                , width = Length.meters 300
+                }
+                |> Physics2d.World.addObject
+                    { id = Circle 1
+                    , object = circle1
                     }
-                    |> Physics2d.Object.setVelocity
-                        (Vector2d.xy (Length.meters 0.5) (Length.meters 0.2))
-                )
-            |> Physics2d.World.addObject
-                Circle2
-                (Physics2d.Object.fromCircle
-                    { position =
-                        Point2d.xy
-                            (Length.meters 50)
-                            (Length.meters 30)
-                    , radius = Length.meters 1
+                |> Physics2d.World.addObject
+                    { id = Circle 2
+                    , object = circle2
                     }
-                    |> Physics2d.Object.setVelocity
-                        (Vector2d.xy (Length.meters -0.5) (Length.meters 0.2))
-                )
-    }
+      }
+    , Effect.none
+    )
 
 
 type Msg
@@ -119,14 +120,8 @@ update msg model =
 areBothCircles : ObjectId -> ObjectId -> Bool
 areBothCircles id1 id2 =
     case ( id1, id2 ) of
-        ( Circle1, Circle2 ) ->
+        ( Circle _, Circle _ ) ->
             True
-
-        ( Circle2, Circle1 ) ->
-            True
-
-        _ ->
-            False
 
 
 applyGravity :
@@ -139,7 +134,7 @@ applyGravity id world object =
         |> Physics2d.Object.addVelocity
             (Vector2d.xy
                 (Length.meters 0)
-                (Length.meters -0.005)
+                (Length.meters -0.0009)
             )
 
 
