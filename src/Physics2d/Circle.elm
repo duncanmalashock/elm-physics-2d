@@ -12,8 +12,6 @@ module Physics2d.Circle exposing
 
 -}
 
--- import Angle
-
 import Length
 
 
