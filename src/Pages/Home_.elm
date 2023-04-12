@@ -188,33 +188,18 @@ viewSvg { widthInPixels, heightInPixels } world =
         objectViewToSvg object =
             case object.shape of
                 Physics2d.Object.PolygonShapeView polygonShapeView ->
-                    [ polygonVerticesToSvg polygonShapeView ]
+                    [ Geometry.Svg.polygon2d
+                        [ Svg.Attributes.fill "#282828" ]
+                        (Polygon2d.singleLoop polygonShapeView.vertices)
+                    ]
 
                 Physics2d.Object.CircleShapeView circleShapeView ->
-                    [ circleShapeViewToSvg circleShapeView ]
-
-        polygonVerticesToSvg :
-            { vertices : List (Point2d.Point2d Length.Meters TopLeft)
-            }
-            -> Svg.Svg msg
-        polygonVerticesToSvg polygonShapeView =
-            Geometry.Svg.polygon2d
-                [ Svg.Attributes.fill "#282828"
-                ]
-                (Polygon2d.singleLoop polygonShapeView.vertices)
-
-        circleShapeViewToSvg :
-            { radius : Length.Length
-            , position : Point2d.Point2d Length.Meters TopLeft
-            }
-            -> Svg.Svg msg
-        circleShapeViewToSvg circleShapeView =
-            Geometry.Svg.circle2d
-                [ Svg.Attributes.fill "#282828"
-                ]
-                (Circle2d.withRadius circleShapeView.radius
-                    circleShapeView.position
-                )
+                    [ Geometry.Svg.circle2d
+                        [ Svg.Attributes.fill "#282828" ]
+                        (Circle2d.withRadius circleShapeView.radius
+                            circleShapeView.position
+                        )
+                    ]
 
         pixelsPerMeter =
             Pixels.pixels 10
