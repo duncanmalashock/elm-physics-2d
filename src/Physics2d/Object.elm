@@ -92,7 +92,9 @@ areColliding (Object internals1) (Object internals2) =
         ( CircleShape circle1, CircleShape circle2 ) ->
             let
                 distanceBetweenCenters =
-                    Point2d.distanceFrom internals1.position internals2.position
+                    Point2d.distanceFrom
+                        internals1.position
+                        internals2.position
 
                 radiusSum =
                     Quantity.sum
@@ -190,7 +192,10 @@ velocity (Object internals) =
         |> Vector2d.per Physics2d.Time.step
 
 
-setVelocity : Vector2d.Vector2d Speed.MetersPerSecond TopLeft -> Object -> Object
+setVelocity :
+    Vector2d.Vector2d Speed.MetersPerSecond TopLeft
+    -> Object
+    -> Object
 setVelocity newVelocity (Object internals) =
     let
         displacement : Vector2d.Vector2d Length.Meters TopLeft
@@ -206,7 +211,10 @@ setVelocity newVelocity (Object internals) =
         }
 
 
-addVelocity : Vector2d.Vector2d Speed.MetersPerSecond TopLeft -> Object -> Object
+addVelocity :
+    Vector2d.Vector2d Speed.MetersPerSecond TopLeft
+    -> Object
+    -> Object
 addVelocity velocityToAdd (Object internals) =
     let
         displacement : Vector2d.Vector2d Length.Meters TopLeft
@@ -295,7 +303,9 @@ type alias View =
 
 
 type ShapeView
-    = PolygonShapeView (List (Point2d.Point2d Length.Meters TopLeft))
+    = PolygonShapeView
+        { vertices : List (Point2d.Point2d Length.Meters TopLeft)
+        }
     | CircleShapeView
         { radius : Length.Length
         , position : Point2d.Point2d Length.Meters TopLeft
@@ -315,19 +325,23 @@ toShapeView internals =
     case internals.shape of
         PolygonShape polygon ->
             PolygonShapeView
-                (Physics2d.Polygon.toPoints polygon
-                    |> List.map
-                        (Point2d.rotateAround
-                            Point2d.origin
-                            (internals.heading
-                                |> Direction2d.toAngle
+                { vertices =
+                    Physics2d.Polygon.toPoints polygon
+                        |> List.map
+                            (Point2d.rotateAround
+                                Point2d.origin
+                                (internals.heading
+                                    |> Direction2d.toAngle
+                                )
                             )
-                        )
-                    |> List.map
-                        (Point2d.translateBy
-                            (Vector2d.from Point2d.origin internals.position)
-                        )
-                )
+                        |> List.map
+                            (Point2d.translateBy
+                                (Vector2d.from
+                                    Point2d.origin
+                                    internals.position
+                                )
+                            )
+                }
 
         CircleShape circle ->
             CircleShapeView
