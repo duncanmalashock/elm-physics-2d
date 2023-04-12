@@ -52,6 +52,7 @@ import Physics2d.Polygon
 import Physics2d.Time
 import Point2d
 import Quantity
+import Speed
 import Vector2d
 
 
@@ -151,28 +152,41 @@ initialInternals config shape =
     }
 
 
-velocity : Object -> Vector2d.Vector2d Length.Meters TopLeft
+velocity : Object -> Vector2d.Vector2d Speed.MetersPerSecond TopLeft
 velocity (Object internals) =
     Vector2d.from internals.positionPrevious internals.position
+        |> Vector2d.per Physics2d.Time.step
 
 
-setVelocity : Vector2d.Vector2d Length.Meters TopLeft -> Object -> Object
+setVelocity : Vector2d.Vector2d Speed.MetersPerSecond TopLeft -> Object -> Object
 setVelocity newVelocity (Object internals) =
+    let
+        displacement : Vector2d.Vector2d Length.Meters TopLeft
+        displacement =
+            Vector2d.reverse newVelocity
+                |> Vector2d.for Physics2d.Time.step
+    in
     Object
         { internals
             | positionPrevious =
                 internals.position
-                    |> Point2d.translateBy (Vector2d.reverse newVelocity)
+                    |> Point2d.translateBy displacement
         }
 
 
-addVelocity : Vector2d.Vector2d Length.Meters TopLeft -> Object -> Object
+addVelocity : Vector2d.Vector2d Speed.MetersPerSecond TopLeft -> Object -> Object
 addVelocity velocityToAdd (Object internals) =
+    let
+        displacement : Vector2d.Vector2d Length.Meters TopLeft
+        displacement =
+            Vector2d.reverse velocityToAdd
+                |> Vector2d.for Physics2d.Time.step
+    in
     Object
         { internals
             | positionPrevious =
                 internals.positionPrevious
-                    |> Point2d.translateBy (Vector2d.reverse velocityToAdd)
+                    |> Point2d.translateBy displacement
         }
 
 

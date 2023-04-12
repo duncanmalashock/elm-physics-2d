@@ -2,6 +2,7 @@ module Pages.Home_ exposing (Model, Msg, page)
 
 import Angle
 import Browser.Events
+import Duration
 import Effect exposing (Effect)
 import Html
 import Length
@@ -48,7 +49,9 @@ init () =
                 , radius = Length.meters 1
                 }
                 |> Physics2d.Object.setVelocity
-                    (Vector2d.xy (Length.meters 0.05) (Length.meters 0.2))
+                    (Vector2d.xy (Length.meters 10) (Length.meters 10)
+                        |> Vector2d.per Duration.second
+                    )
 
         circle2 : Physics2d.Object.Object
         circle2 =
@@ -58,7 +61,9 @@ init () =
                 , radius = Length.meters 1
                 }
                 |> Physics2d.Object.setVelocity
-                    (Vector2d.xy (Length.meters -0.05) (Length.meters 0.2))
+                    (Vector2d.xy (Length.meters -10) (Length.meters 10)
+                        |> Vector2d.per Duration.second
+                    )
     in
     ( { world =
             Physics2d.World.init
@@ -134,7 +139,8 @@ applyGravity id world object =
         |> Physics2d.Object.addVelocity
             (Vector2d.xy
                 (Length.meters 0)
-                (Length.meters -0.0009)
+                (Length.meters -0.1)
+                |> Vector2d.per Duration.second
             )
 
 
