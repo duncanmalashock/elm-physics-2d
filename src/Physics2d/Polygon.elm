@@ -16,7 +16,6 @@ module Physics2d.Polygon exposing
 
 import Angle
 import Length
-import LineSegment2d
 import Physics2d.CoordinateSystem exposing (TopLeft)
 import Point2d
 import Quantity

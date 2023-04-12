@@ -1,6 +1,5 @@
 module Pages.Home_ exposing (Model, Msg, page)
 
-import Angle
 import Browser.Events
 import Circle2d
 import Duration
@@ -11,7 +10,6 @@ import Html
 import Html.Attributes
 import Length
 import Page exposing (Page)
-import Physics2d.CoordinateSystem exposing (TopLeft)
 import Physics2d.Object
 import Physics2d.Polygon
 import Physics2d.World
@@ -23,7 +21,6 @@ import Route
 import Shared
 import Svg
 import Svg.Attributes
-import Time
 import Vector2d
 import View exposing (View)
 

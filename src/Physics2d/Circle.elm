@@ -12,11 +12,9 @@ module Physics2d.Circle exposing
 
 -}
 
-import Angle
+-- import Angle
+
 import Length
-import Physics2d.CoordinateSystem exposing (TopLeft)
-import Point2d
-import Quantity
 
 
 type Circle

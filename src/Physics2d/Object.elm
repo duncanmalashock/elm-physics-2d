@@ -57,7 +57,6 @@ import Angle
 import AngularSpeed
 import Direction2d
 import Length
-import LineSegment2d
 import Physics2d.Circle
 import Physics2d.CoordinateSystem exposing (TopLeft)
 import Physics2d.Polygon

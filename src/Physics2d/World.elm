@@ -18,16 +18,10 @@ module Physics2d.World exposing
 
 -}
 
-import Angle
 import AssocList as Dict exposing (Dict)
 import Length
-import LineSegment2d
 import List.Extra
-import Physics2d.CoordinateSystem exposing (TopLeft)
 import Physics2d.Object
-import Physics2d.Polygon
-import Point2d
-import Quantity
 import Task
 
 
