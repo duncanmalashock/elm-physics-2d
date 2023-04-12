@@ -2,18 +2,27 @@ module Pages.Home_ exposing (Model, Msg, page)
 
 import Angle
 import Browser.Events
+import Circle2d
 import Duration
 import Effect exposing (Effect)
+import Frame2d
+import Geometry.Svg
 import Html
+import Html.Attributes
 import Length
 import Page exposing (Page)
+import Physics2d.CoordinateSystem exposing (TopLeft)
 import Physics2d.Object
 import Physics2d.Polygon
 import Physics2d.World
+import Pixels
 import Point2d
+import Polygon2d
 import Quantity
 import Route
 import Shared
+import Svg
+import Svg.Attributes
 import Time
 import Vector2d
 import View exposing (View)
@@ -153,8 +162,70 @@ view : Route.Route () -> Model -> View msg
 view route model =
     { title = "Physics2D"
     , body =
-        [ Physics2d.World.viewSvg
+        [ viewSvg
             { widthInPixels = 600, heightInPixels = 600 }
             model.world
         ]
     }
+
+
+viewSvg :
+    { widthInPixels : Float, heightInPixels : Float }
+    -> Physics2d.World.World objectId
+    -> Html.Html msg
+viewSvg { widthInPixels, heightInPixels } world =
+    let
+        topLeftFrame =
+            Frame2d.atPoint (Point2d.pixels 0 heightInPixels)
+                |> Frame2d.reverseY
+
+        svgOutput : List (Svg.Svg msg)
+        svgOutput =
+            Physics2d.World.objectViews world
+                |> List.concatMap objectViewToSvg
+
+        objectViewToSvg : Physics2d.Object.View -> List (Svg.Svg msg)
+        objectViewToSvg object =
+            case object.shape of
+                Physics2d.Object.PolygonShapeView vertices ->
+                    [ polygonVerticesToSvg vertices ]
+
+                Physics2d.Object.CircleShapeView circleShapeView ->
+                    [ circleShapeViewToSvg circleShapeView ]
+
+        polygonVerticesToSvg :
+            List (Point2d.Point2d Length.Meters TopLeft)
+            -> Svg.Svg msg
+        polygonVerticesToSvg vertices =
+            Geometry.Svg.polygon2d
+                [ Svg.Attributes.fill "#282828"
+                ]
+                (Polygon2d.singleLoop vertices)
+
+        circleShapeViewToSvg :
+            { radius : Length.Length
+            , position : Point2d.Point2d Length.Meters TopLeft
+            }
+            -> Svg.Svg msg
+        circleShapeViewToSvg circleShapeView =
+            Geometry.Svg.circle2d
+                [ Svg.Attributes.fill "#282828"
+                ]
+                (Circle2d.withRadius circleShapeView.radius
+                    circleShapeView.position
+                )
+
+        pixelsPerMeter =
+            Pixels.pixels 10
+                |> Quantity.per (Length.meters 1)
+    in
+    Svg.svg
+        [ Svg.Attributes.width (String.fromFloat widthInPixels)
+        , Svg.Attributes.height (String.fromFloat widthInPixels)
+        , Html.Attributes.style "display" "block"
+        , Html.Attributes.style "background" "#f8f8f8"
+        ]
+        (svgOutput
+            |> List.map (Geometry.Svg.at pixelsPerMeter)
+            |> List.map (Geometry.Svg.relativeTo topLeftFrame)
+        )
