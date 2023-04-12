@@ -12,7 +12,7 @@ module Physics2d.World exposing
 @docs init
 @docs addObject, removeObject
 @docs update
-@docs objectShapeViews
+@docs objectViews
 
 -}
 
