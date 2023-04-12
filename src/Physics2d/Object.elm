@@ -1,8 +1,10 @@
 module Physics2d.Object exposing
     ( Object
     , fromPolygon, fromCircle
+    , position, setPosition
     , velocity, setVelocity, addVelocity
-    , setRotation
+    , heading, setHeading
+    , angularSpeed, setAngularSpeed
     , integrate
     , areColliding
     , ShapeView(..)
@@ -19,10 +21,19 @@ module Physics2d.Object exposing
 @docs fromPolygon, fromCircle
 
 
-# Applying changes
+# Motion
 
+
+## Linear
+
+@docs position, setPosition
 @docs velocity, setVelocity, addVelocity
-@docs setRotation
+
+
+## Angular
+
+@docs heading, setHeading
+@docs angularSpeed, setAngularSpeed
 
 
 # Integration
@@ -44,6 +55,7 @@ module Physics2d.Object exposing
 
 import Angle
 import AngularSpeed
+import Direction2d
 import Length
 import LineSegment2d
 import Physics2d.Circle
@@ -69,8 +81,8 @@ type alias Internals =
     { shape : Shape
     , position : Point2d.Point2d Length.Meters TopLeft
     , positionPrevious : Point2d.Point2d Length.Meters TopLeft
-    , rotation : Angle.Angle
-    , rotationPrevious : Angle.Angle
+    , heading : Direction2d.Direction2d TopLeft
+    , headingPrevious : Direction2d.Direction2d TopLeft
     }
 
 
@@ -99,12 +111,12 @@ fromPolygon :
     , polygon : Physics2d.Polygon.Polygon
     }
     -> Object
-fromPolygon { position, polygon } =
+fromPolygon config =
     initialInternals
-        { position = position
-        , rotation = Angle.turns 0
+        { position = config.position
+        , heading = Direction2d.fromAngle (Angle.turns 0)
         }
-        (PolygonShape polygon)
+        (PolygonShape config.polygon)
         |> Object
 
 
@@ -113,14 +125,14 @@ fromCircle :
     , radius : Length.Length
     }
     -> Object
-fromCircle { position, radius } =
+fromCircle config =
     initialInternals
-        { position = position
-        , rotation = Angle.turns 0
+        { position = config.position
+        , heading = Direction2d.fromAngle (Angle.turns 0)
         }
         (CircleShape
             (Physics2d.Circle.new
-                { radius = radius }
+                { radius = config.radius }
             )
         )
         |> Object
@@ -128,28 +140,48 @@ fromCircle { position, radius } =
 
 initialInternals :
     { position : Point2d.Point2d Length.Meters TopLeft
-    , rotation : Angle.Angle
+    , heading : Direction2d.Direction2d TopLeft
     }
     -> shape
     ->
         { position : Point2d.Point2d Length.Meters TopLeft
         , positionPrevious : Point2d.Point2d Length.Meters TopLeft
-        , rotation : Angle.Angle
-        , rotationPrevious : Angle.Angle
+        , heading : Direction2d.Direction2d TopLeft
+        , headingPrevious : Direction2d.Direction2d TopLeft
         , shape : shape
         }
 initialInternals config shape =
     let
         initialRotation =
-            config.rotation
-                |> Quantity.plus (Angle.turns 0.25)
+            config.heading
+                |> Direction2d.rotateBy (Angle.turns 0.25)
     in
     { position = config.position
     , positionPrevious = config.position
-    , rotation = initialRotation
-    , rotationPrevious = initialRotation
+    , heading = initialRotation
+    , headingPrevious = initialRotation
     , shape = shape
     }
+
+
+position : Object -> Point2d.Point2d Length.Meters TopLeft
+position (Object internals) =
+    internals.position
+
+
+setPosition : Point2d.Point2d Length.Meters TopLeft -> Object -> Object
+setPosition newPosition (Object internals) =
+    let
+        displacementToPrevious =
+            Vector2d.from internals.position internals.positionPrevious
+    in
+    Object
+        { internals
+            | position = newPosition
+            , positionPrevious =
+                newPosition
+                    |> Point2d.translateBy displacementToPrevious
+        }
 
 
 velocity : Object -> Vector2d.Vector2d Speed.MetersPerSecond TopLeft
@@ -190,31 +222,51 @@ addVelocity velocityToAdd (Object internals) =
         }
 
 
-setRotation : Angle.Angle -> Object -> Object
-setRotation newRotation (Object internals) =
+heading : Object -> Direction2d.Direction2d TopLeft
+heading (Object internals) =
+    internals.heading
+
+
+setHeading : Direction2d.Direction2d TopLeft -> Object -> Object
+setHeading newHeading (Object internals) =
     Object
         { internals
-            | rotation = newRotation
-            , rotationPrevious = newRotation
+            | heading = newHeading
+            , headingPrevious = newHeading
+        }
+
+
+angularSpeed : Object -> AngularSpeed.AngularSpeed
+angularSpeed (Object internals) =
+    Direction2d.angleFrom internals.headingPrevious internals.heading
+        |> Quantity.per Physics2d.Time.step
+
+
+setAngularSpeed : AngularSpeed.AngularSpeed -> Object -> Object
+setAngularSpeed newAngularSpeed (Object internals) =
+    let
+        headingStep =
+            angularSpeed (Object internals)
+                |> Quantity.for Physics2d.Time.step
+
+        updatedHeadingPrevious =
+            internals.heading
+                |> Direction2d.rotateBy
+                    (Quantity.negate headingStep)
+    in
+    Object
+        { internals
+            | headingPrevious = updatedHeadingPrevious
         }
 
 
 integrate : Object -> Object
 integrate (Object internals) =
     let
-        angularSpeed : AngularSpeed.AngularSpeed
-        angularSpeed =
-            AngularSpeed.turnsPerSecond
-                (Quantity.minus
-                    internals.rotationPrevious
-                    internals.rotation
-                    |> Angle.inTurns
-                )
-
-        rotationStep : Angle.Angle
-        rotationStep =
-            Angle.turns
-                (AngularSpeed.inTurnsPerSecond angularSpeed)
+        headingStep : Angle.Angle
+        headingStep =
+            angularSpeed (Object internals)
+                |> Quantity.for Physics2d.Time.step
 
         positionStep : Vector2d.Vector2d Length.Meters TopLeft
         positionStep =
@@ -222,11 +274,11 @@ integrate (Object internals) =
     in
     Object
         { internals
-            | rotation =
-                internals.rotation
-                    |> Quantity.plus rotationStep
-            , rotationPrevious =
-                internals.rotation
+            | heading =
+                internals.heading
+                    |> Direction2d.rotateBy headingStep
+            , headingPrevious =
+                internals.heading
             , position =
                 internals.position
                     |> Point2d.translateBy positionStep
@@ -237,7 +289,7 @@ integrate (Object internals) =
 
 type alias View =
     { position : Point2d.Point2d Length.Meters TopLeft
-    , rotation : Angle.Angle
+    , heading : Angle.Angle
     , shape : ShapeView
     }
 
@@ -253,7 +305,7 @@ type ShapeView
 view : Object -> View
 view (Object internals) =
     { position = internals.position
-    , rotation = internals.rotation
+    , heading = Direction2d.toAngle internals.heading
     , shape = toShapeView internals
     }
 
@@ -267,7 +319,9 @@ toShapeView internals =
                     |> List.map
                         (Point2d.rotateAround
                             Point2d.origin
-                            internals.rotation
+                            (internals.heading
+                                |> Direction2d.toAngle
+                            )
                         )
                     |> List.map
                         (Point2d.translateBy

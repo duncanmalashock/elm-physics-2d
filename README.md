@@ -17,7 +17,6 @@ A simple physics engine in [Elm](https://elm-lang.org) for games and simulations
 - [x] Collision response (custom)
 
 ### Issues
-1. What should units for rotational velocity be?
 1. Incorrect translation between world units and screen units
 1. Destructuring to check for `objectId` matches requires a pair of tuple pattern matches (clunky and brittle)
 1. `World.viewSvg` should be moved out of `World` and into an example
