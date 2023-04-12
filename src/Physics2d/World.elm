@@ -41,15 +41,16 @@ type alias Internals objectId =
 init :
     { width : Length.Length
     , height : Length.Length
+    , objects : List ( objectId, Physics2d.Object.Object )
     }
     -> World objectId
-init { width, height } =
+init { width, height, objects } =
     World
         { dimensions =
             { x = width
             , y = height
             }
-        , objects = Dict.empty
+        , objects = Dict.fromList objects
         }
 
 

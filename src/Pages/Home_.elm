@@ -1,5 +1,7 @@
 module Pages.Home_ exposing (Model, Msg, page)
 
+import AngularSpeed
+import AssocSet
 import Browser.Events
 import Circle2d
 import Duration
@@ -8,8 +10,10 @@ import Frame2d
 import Geometry.Svg
 import Html
 import Html.Attributes
+import Json.Decode
 import Length
 import Page exposing (Page)
+import Physics2d.CoordinateSystem exposing (TopLeft)
 import Physics2d.Object
 import Physics2d.Polygon
 import Physics2d.World
@@ -19,6 +23,7 @@ import Polygon2d
 import Quantity
 import Route
 import Shared
+import Speed
 import Svg
 import Svg.Attributes
 import Vector2d
@@ -37,53 +42,49 @@ page shared route =
 
 type alias Model =
     { world : Physics2d.World.World ObjectId
+    , keys : AssocSet.Set Key
     }
 
 
+type Key
+    = LeftArrow
+    | RightArrow
+    | UpArrow
+    | DownArrow
+    | Spacebar
+
+
 type ObjectId
-    = Circle Int
+    = PlayerShip
 
 
 init : () -> ( Model, Effect Msg )
 init () =
     let
-        circle1 : Physics2d.Object.Object
-        circle1 =
-            Physics2d.Object.fromCircle
+        playerShip : Physics2d.Object.Object
+        playerShip =
+            Physics2d.Object.fromPolygon
                 { position =
-                    Point2d.xy (Length.meters 10) (Length.meters 30)
-                , radius = Length.meters 1
+                    Point2d.xy (Length.meters 30) (Length.meters 30)
+                , polygon =
+                    Physics2d.Polygon.custom
+                        { vertices =
+                            [ Point2d.xy (Length.meters -1) (Length.meters -1)
+                            , Point2d.xy (Length.meters -1) (Length.meters 1)
+                            , Point2d.xy (Length.meters 2) (Length.meters 0)
+                            ]
+                        }
                 }
-                |> Physics2d.Object.setVelocity
-                    (Vector2d.xy (Length.meters 10) (Length.meters 10)
-                        |> Vector2d.per Duration.second
-                    )
-
-        circle2 : Physics2d.Object.Object
-        circle2 =
-            Physics2d.Object.fromCircle
-                { position =
-                    Point2d.xy (Length.meters 50) (Length.meters 30)
-                , radius = Length.meters 1
-                }
-                |> Physics2d.Object.setVelocity
-                    (Vector2d.xy (Length.meters -10) (Length.meters 10)
-                        |> Vector2d.per Duration.second
-                    )
     in
     ( { world =
             Physics2d.World.init
                 { height = Length.meters 300
                 , width = Length.meters 300
+                , objects =
+                    [ ( PlayerShip, playerShip )
+                    ]
                 }
-                |> Physics2d.World.addObject
-                    { id = Circle 1
-                    , object = circle1
-                    }
-                |> Physics2d.World.addObject
-                    { id = Circle 2
-                    , object = circle2
-                    }
+      , keys = AssocSet.empty
       }
     , Effect.none
     )
@@ -91,7 +92,8 @@ init () =
 
 type Msg
     = UpdateFrame
-    | CirclesCollided ( ObjectId, Physics2d.Object.Object ) ( ObjectId, Physics2d.Object.Object )
+    | KeyUp Key
+    | KeyDown Key
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -102,11 +104,10 @@ update msg model =
                 ( updatedWorld, cmd ) =
                     Physics2d.World.update
                         { rules =
-                            [ applyGravity
+                            [ updatePlayerShip model.keys
+                            , wrapAround
                             ]
-                        , collisionHandlers =
-                            [ ( areBothCircles, CirclesCollided )
-                            ]
+                        , collisionHandlers = []
                         , world = model.world
                         }
             in
@@ -117,42 +118,149 @@ update msg model =
             , Effect.sendCmd cmd
             )
 
-        CirclesCollided ( id1, object1 ) ( id2, object2 ) ->
+        KeyDown key ->
             ( { model
-                | world =
-                    model.world
-                        |> Physics2d.World.removeObject id1
-                        |> Physics2d.World.removeObject id2
+                | keys = AssocSet.insert key model.keys
+              }
+            , Effect.none
+            )
+
+        KeyUp key ->
+            ( { model
+                | keys = AssocSet.remove key model.keys
               }
             , Effect.none
             )
 
 
-areBothCircles : ObjectId -> ObjectId -> Bool
-areBothCircles id1 id2 =
-    case ( id1, id2 ) of
-        ( Circle _, Circle _ ) ->
-            True
+updatePlayerShip :
+    AssocSet.Set Key
+    -> ObjectId
+    -> Physics2d.World.World ObjectId
+    -> Physics2d.Object.Object
+    -> Physics2d.Object.Object
+updatePlayerShip keys objectId world object =
+    if objectId == PlayerShip then
+        let
+            turnKeyMultiplier : number
+            turnKeyMultiplier =
+                List.sum
+                    [ if AssocSet.member LeftArrow keys then
+                        1
+
+                      else
+                        0
+                    , if AssocSet.member RightArrow keys then
+                        -1
+
+                      else
+                        0
+                    ]
+
+            angularSpeed : AngularSpeed.AngularSpeed
+            angularSpeed =
+                AngularSpeed.turnsPerSecond 0.4
+                    |> Quantity.multiplyBy turnKeyMultiplier
+
+            velocityToAdd : Vector2d.Vector2d Speed.MetersPerSecond TopLeft
+            velocityToAdd =
+                if AssocSet.member UpArrow keys then
+                    Vector2d.withLength (Length.meters 0.125)
+                        (Physics2d.Object.heading object)
+                        |> Vector2d.per Duration.second
+
+                else
+                    Vector2d.zero
+        in
+        object
+            |> Physics2d.Object.setAngularSpeed angularSpeed
+            |> Physics2d.Object.addVelocity velocityToAdd
+
+    else
+        object
 
 
-applyGravity :
+wrapAround :
     ObjectId
     -> Physics2d.World.World ObjectId
     -> Physics2d.Object.Object
     -> Physics2d.Object.Object
-applyGravity id world object =
-    object
-        |> Physics2d.Object.addVelocity
-            (Vector2d.xy
-                (Length.meters 0)
-                (Length.meters -0.1)
-                |> Vector2d.per Duration.second
-            )
+wrapAround objectId world object =
+    let
+        { x, y } =
+            Physics2d.Object.position object
+                |> Point2d.toRecord Length.inMeters
+
+        newPosition =
+            Physics2d.Object.position object
+                |> (if x > 60 then
+                        Point2d.translateBy
+                            (Vector2d.xy (Length.meters -60) (Length.meters 0))
+
+                    else
+                        identity
+                   )
+                |> (if x < 0 then
+                        Point2d.translateBy
+                            (Vector2d.xy (Length.meters 60) (Length.meters 0))
+
+                    else
+                        identity
+                   )
+                |> (if y > 60 then
+                        Point2d.translateBy
+                            (Vector2d.xy (Length.meters 0) (Length.meters -60))
+
+                    else
+                        identity
+                   )
+                |> (if y < 0 then
+                        Point2d.translateBy
+                            (Vector2d.xy (Length.meters 0) (Length.meters 60))
+
+                    else
+                        identity
+                   )
+    in
+    Physics2d.Object.setPosition newPosition object
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Browser.Events.onAnimationFrameDelta (\timeElapsed -> UpdateFrame)
+    Sub.batch
+        [ Browser.Events.onAnimationFrameDelta (\timeElapsed -> UpdateFrame)
+        , Browser.Events.onKeyDown (keyEventDecoder KeyDown)
+        , Browser.Events.onKeyUp (keyEventDecoder KeyUp)
+        ]
+
+
+keyEventDecoder : (Key -> Msg) -> Json.Decode.Decoder Msg
+keyEventDecoder toMsg =
+    let
+        toKey : String -> Json.Decode.Decoder Key
+        toKey code =
+            case code of
+                "ArrowUp" ->
+                    Json.Decode.succeed UpArrow
+
+                "ArrowDown" ->
+                    Json.Decode.succeed DownArrow
+
+                "ArrowLeft" ->
+                    Json.Decode.succeed LeftArrow
+
+                "ArrowRight" ->
+                    Json.Decode.succeed RightArrow
+
+                "Space" ->
+                    Json.Decode.succeed Spacebar
+
+                _ ->
+                    Json.Decode.fail "Another key was pressed"
+    in
+    Json.Decode.field "code" Json.Decode.string
+        |> Json.Decode.andThen toKey
+        |> Json.Decode.map toMsg
 
 
 view : Route.Route () -> Model -> View msg
@@ -186,13 +294,13 @@ viewSvg { widthInPixels, heightInPixels } world =
             case object.shape of
                 Physics2d.Object.PolygonShapeView polygonShapeView ->
                     [ Geometry.Svg.polygon2d
-                        [ Svg.Attributes.fill "#282828" ]
+                        [ Svg.Attributes.fill "#f8f8f8" ]
                         (Polygon2d.singleLoop polygonShapeView.vertices)
                     ]
 
                 Physics2d.Object.CircleShapeView circleShapeView ->
                     [ Geometry.Svg.circle2d
-                        [ Svg.Attributes.fill "#282828" ]
+                        [ Svg.Attributes.fill "#f8f8f8" ]
                         (Circle2d.withRadius circleShapeView.radius
                             circleShapeView.position
                         )
@@ -206,7 +314,7 @@ viewSvg { widthInPixels, heightInPixels } world =
         [ Svg.Attributes.width (String.fromFloat widthInPixels)
         , Svg.Attributes.height (String.fromFloat widthInPixels)
         , Html.Attributes.style "display" "block"
-        , Html.Attributes.style "background" "#f8f8f8"
+        , Html.Attributes.style "background" "#181818"
         ]
         (svgOutput
             |> List.map (Geometry.Svg.at pixelsPerMeter)

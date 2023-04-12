@@ -1,7 +1,7 @@
 module Physics2d.Polygon exposing
     ( Polygon
     , triangle, square, pentagon, hexagon
-    , regular
+    , regular, custom
     , toPoints
     )
 
@@ -9,7 +9,7 @@ module Physics2d.Polygon exposing
 
 @docs Polygon
 @docs triangle, square, pentagon, hexagon
-@docs regular
+@docs regular, custom
 @docs toPoints
 
 -}
@@ -90,6 +90,11 @@ regular { sides, radius } =
     Polygon
         { vertices = vertices
         }
+
+
+custom : { vertices : List (Point2d.Point2d Length.Meters TopLeft) } -> Polygon
+custom { vertices } =
+    Polygon { vertices = vertices }
 
 
 toPoints :

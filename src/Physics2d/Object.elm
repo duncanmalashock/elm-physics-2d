@@ -152,15 +152,10 @@ initialInternals :
         , shape : shape
         }
 initialInternals config shape =
-    let
-        initialRotation =
-            config.heading
-                |> Direction2d.rotateBy (Angle.turns 0.25)
-    in
     { position = config.position
     , positionPrevious = config.position
-    , heading = initialRotation
-    , headingPrevious = initialRotation
+    , heading = config.heading
+    , headingPrevious = config.heading
     , shape = shape
     }
 
@@ -253,7 +248,7 @@ setAngularSpeed : AngularSpeed.AngularSpeed -> Object -> Object
 setAngularSpeed newAngularSpeed (Object internals) =
     let
         headingStep =
-            angularSpeed (Object internals)
+            newAngularSpeed
                 |> Quantity.for Physics2d.Time.step
 
         updatedHeadingPrevious =
