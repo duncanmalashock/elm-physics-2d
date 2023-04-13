@@ -22,6 +22,7 @@ import AssocList as Dict exposing (Dict)
 import Length
 import List.Extra
 import Physics2d.Object
+import Random
 import Task
 
 
@@ -85,14 +86,19 @@ getObject { id } (World internals) =
 
 
 update :
-    { rules :
+    { objectUpdateRules :
         List
             (objectId
              -> World objectId
              -> Physics2d.Object.Object
              -> Physics2d.Object.Object
             )
-    , collisionHandlers :
+    , objectCreateRules :
+        List
+            (World objectId
+             -> Maybe (Int -> msg)
+            )
+    , collisionRules :
         List
             ( objectId -> objectId -> Bool
             , ( objectId, Physics2d.Object.Object )
@@ -102,37 +108,38 @@ update :
     , world : World objectId
     }
     -> ( World objectId, Cmd msg )
-update { rules, world, collisionHandlers } =
+update { objectUpdateRules, objectCreateRules, collisionRules, world } =
     let
-        updatedWorld =
-            world
-                |> applyRules rules
+        ( updatedWorld, cmds ) =
+            ( world, Cmd.none )
+                |> applyObjectUpdateRules objectUpdateRules
                 |> integrateObjects
-
-        cmds =
-            applyCollisionHandlers collisionHandlers updatedWorld
+                |> applyObjectCreateRules objectCreateRules
+                |> applyCollisionRules collisionRules
     in
     ( updatedWorld, cmds )
 
 
-applyRules :
+applyObjectUpdateRules :
     List
         (objectId
          -> World objectId
          -> Physics2d.Object.Object
          -> Physics2d.Object.Object
         )
-    -> World objectId
-    -> World objectId
-applyRules rules (World internals) =
-    World
+    -> ( World objectId, Cmd msg )
+    -> ( World objectId, Cmd msg )
+applyObjectUpdateRules rules ( (World internals) as world, cmd ) =
+    ( World
         { internals
             | objects =
-                List.foldl (applyRule (World internals)) internals.objects rules
+                List.foldl (applyObjectUpdateRule world) internals.objects rules
         }
+    , cmd
+    )
 
 
-applyRule :
+applyObjectUpdateRule :
     World objectId
     ->
         (objectId
@@ -142,32 +149,63 @@ applyRule :
         )
     -> Dict objectId Physics2d.Object.Object
     -> Dict objectId Physics2d.Object.Object
-applyRule world rule objects =
+applyObjectUpdateRule world rule objects =
     objects
         |> Dict.map (\id -> rule id world)
 
 
-applyCollisionHandlers :
+applyObjectCreateRules :
+    List
+        (World objectId
+         -> Maybe (Int -> msg)
+        )
+    -> ( World objectId, Cmd msg )
+    -> ( World objectId, Cmd msg )
+applyObjectCreateRules rules ( (World internals) as world, cmd ) =
+    ( World internals
+    , Cmd.batch
+        (cmd :: List.map (applyObjectCreateRule world) rules)
+    )
+
+
+applyObjectCreateRule :
+    World objectId
+    ->
+        (World objectId
+         -> Maybe (Int -> msg)
+        )
+    -> Cmd msg
+applyObjectCreateRule ((World internals) as world) toMaybeIntToMsg =
+    case toMaybeIntToMsg world of
+        Just toMsg ->
+            Random.generate toMsg (Random.int 1 32767)
+
+        Nothing ->
+            Cmd.none
+
+
+applyCollisionRules :
     List
         ( objectId -> objectId -> Bool
         , ( objectId, Physics2d.Object.Object )
           -> ( objectId, Physics2d.Object.Object )
           -> msg
         )
-    -> World objectId
-    -> Cmd msg
-applyCollisionHandlers collisionHandlers (World internals) =
+    -> ( World objectId, Cmd msg )
+    -> ( World objectId, Cmd msg )
+applyCollisionRules rules ( World internals, cmd ) =
     let
         objectPairs =
             Dict.toList internals.objects
                 |> List.Extra.uniquePairs
     in
-    collisionHandlers
-        |> List.concatMap (applyCollisionHandler objectPairs)
-        |> Cmd.batch
+    ( World internals
+    , Cmd.batch
+        (cmd :: List.concatMap (applyCollisionRule objectPairs) rules)
+    )
 
 
-applyCollisionHandler :
+applyCollisionRule :
     List
         ( ( objectId, Physics2d.Object.Object )
         , ( objectId, Physics2d.Object.Object )
@@ -179,7 +217,7 @@ applyCollisionHandler :
           -> msg
         )
     -> List (Cmd msg)
-applyCollisionHandler objectPairs ( predicate, toMsg ) =
+applyCollisionRule objectPairs ( predicate, toMsg ) =
     objectPairs
         |> List.filter
             (\( ( id1, object1 ), ( id2, object2 ) ) ->
@@ -200,14 +238,20 @@ applyCollisionHandler objectPairs ( predicate, toMsg ) =
             )
 
 
-integrateObjects : World objectId -> World objectId
-integrateObjects (World internals) =
-    World
+integrateObjects : ( World objectId, Cmd msg ) -> ( World objectId, Cmd msg )
+integrateObjects ( World internals, cmd ) =
+    ( World
         { internals
             | objects =
                 internals.objects
                     |> Dict.map (\id -> Physics2d.Object.integrate)
+                    |> Dict.filter
+                        (\id object ->
+                            Physics2d.Object.shouldRemove object |> not
+                        )
         }
+    , cmd
+    )
 
 
 objectViews : World objectId -> List Physics2d.Object.View

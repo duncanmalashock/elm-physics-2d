@@ -5,6 +5,8 @@ module Physics2d.Object exposing
     , velocity, setVelocity, addVelocity
     , heading, setHeading
     , angularSpeed, setAngularSpeed
+    , age
+    , shouldRemove, setShouldRemove
     , integrate
     , areColliding
     , ShapeView(..)
@@ -36,6 +38,16 @@ module Physics2d.Object exposing
 @docs angularSpeed, setAngularSpeed
 
 
+# Age
+
+@docs age
+
+
+# Removal
+
+@docs shouldRemove, setShouldRemove
+
+
 # Integration
 
 @docs integrate
@@ -56,6 +68,7 @@ module Physics2d.Object exposing
 import Angle
 import AngularSpeed
 import Direction2d
+import Duration
 import Length
 import Physics2d.Circle
 import Physics2d.CoordinateSystem exposing (TopLeft)
@@ -82,6 +95,8 @@ type alias Internals =
     , positionPrevious : Point2d.Point2d Length.Meters TopLeft
     , heading : Direction2d.Direction2d TopLeft
     , headingPrevious : Direction2d.Direction2d TopLeft
+    , age : Duration.Duration
+    , shouldRemove : Bool
     }
 
 
@@ -149,6 +164,8 @@ initialInternals :
         , positionPrevious : Point2d.Point2d Length.Meters TopLeft
         , heading : Direction2d.Direction2d TopLeft
         , headingPrevious : Direction2d.Direction2d TopLeft
+        , age : Duration.Duration
+        , shouldRemove : Bool
         , shape : shape
         }
 initialInternals config shape =
@@ -157,6 +174,8 @@ initialInternals config shape =
     , heading = config.heading
     , headingPrevious = config.heading
     , shape = shape
+    , age = Duration.seconds 0
+    , shouldRemove = False
     }
 
 
@@ -262,6 +281,21 @@ setAngularSpeed newAngularSpeed (Object internals) =
         }
 
 
+age : Object -> Duration.Duration
+age (Object internals) =
+    internals.age
+
+
+shouldRemove : Object -> Bool
+shouldRemove (Object internals) =
+    internals.shouldRemove
+
+
+setShouldRemove : Object -> Object
+setShouldRemove (Object internals) =
+    Object { internals | shouldRemove = True }
+
+
 integrate : Object -> Object
 integrate (Object internals) =
     let
@@ -286,6 +320,8 @@ integrate (Object internals) =
                     |> Point2d.translateBy positionStep
             , positionPrevious =
                 internals.position
+            , age =
+                Quantity.plus internals.age Physics2d.Time.step
         }
 
 

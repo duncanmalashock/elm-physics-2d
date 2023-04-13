@@ -43,6 +43,7 @@ page shared route =
 type alias Model =
     { world : Physics2d.World.World ObjectId
     , keys : AssocSet.Set Key
+    , playerIsFiring : Bool
     }
 
 
@@ -56,6 +57,7 @@ type Key
 
 type ObjectId
     = PlayerShip
+    | PlayerBullet Int
 
 
 init : () -> ( Model, Effect Msg )
@@ -85,6 +87,7 @@ init () =
                     ]
                 }
       , keys = AssocSet.empty
+      , playerIsFiring = False
       }
     , Effect.none
     )
@@ -94,6 +97,7 @@ type Msg
     = UpdateFrame
     | KeyUp Key
     | KeyDown Key
+    | PlayerBulletCreated Physics2d.Object.Object Int
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -103,24 +107,40 @@ update msg model =
             let
                 ( updatedWorld, cmd ) =
                     Physics2d.World.update
-                        { rules =
+                        { objectUpdateRules =
                             [ updatePlayerShip model.keys
                             , wrapAround
+                            , removeOldBullets
                             ]
-                        , collisionHandlers = []
+                        , objectCreateRules =
+                            [ createPlayerBullet model.playerIsFiring
+                            ]
+                        , collisionRules =
+                            []
                         , world = model.world
                         }
             in
+            ( { model | world = updatedWorld }
+            , Effect.sendCmd cmd
+            )
+
+        PlayerBulletCreated newObject randomInt ->
             ( { model
                 | world =
-                    updatedWorld
+                    model.world
+                        |> Physics2d.World.addObject
+                            { id = PlayerBullet randomInt
+                            , object = newObject
+                            }
+                , playerIsFiring = False
               }
-            , Effect.sendCmd cmd
+            , Effect.none
             )
 
         KeyDown key ->
             ( { model
                 | keys = AssocSet.insert key model.keys
+                , playerIsFiring = key == Spacebar
               }
             , Effect.none
             )
@@ -131,6 +151,37 @@ update msg model =
               }
             , Effect.none
             )
+
+
+createPlayerBullet :
+    Bool
+    -> Physics2d.World.World ObjectId
+    -> Maybe (Int -> Msg)
+createPlayerBullet isFiring world =
+    if isFiring then
+        Physics2d.World.getObject { id = PlayerShip } world
+            |> Maybe.map
+                (\player ->
+                    let
+                        initialVelocity =
+                            Vector2d.withLength (Length.meters 25)
+                                (Physics2d.Object.heading player)
+                                |> Vector2d.per Duration.second
+                                |> Vector2d.plus (Physics2d.Object.velocity player)
+
+                        newBullet : Physics2d.Object.Object
+                        newBullet =
+                            Physics2d.Object.fromCircle
+                                { position = Physics2d.Object.position player
+                                , radius = Length.meters 0.2
+                                }
+                                |> Physics2d.Object.setVelocity initialVelocity
+                    in
+                    PlayerBulletCreated newBullet
+                )
+
+    else
+        Nothing
 
 
 updatePlayerShip :
@@ -191,38 +242,60 @@ wrapAround objectId world object =
             Physics2d.Object.position object
                 |> Point2d.toRecord Length.inMeters
 
+        translateX =
+            if x > 60 then
+                -60
+
+            else if x < 0 then
+                60
+
+            else
+                0
+
+        translateY =
+            if y > 60 then
+                -60
+
+            else if y < 0 then
+                60
+
+            else
+                0
+
         newPosition =
             Physics2d.Object.position object
-                |> (if x > 60 then
-                        Point2d.translateBy
-                            (Vector2d.xy (Length.meters -60) (Length.meters 0))
-
-                    else
-                        identity
-                   )
-                |> (if x < 0 then
-                        Point2d.translateBy
-                            (Vector2d.xy (Length.meters 60) (Length.meters 0))
-
-                    else
-                        identity
-                   )
-                |> (if y > 60 then
-                        Point2d.translateBy
-                            (Vector2d.xy (Length.meters 0) (Length.meters -60))
-
-                    else
-                        identity
-                   )
-                |> (if y < 0 then
-                        Point2d.translateBy
-                            (Vector2d.xy (Length.meters 0) (Length.meters 60))
-
-                    else
-                        identity
-                   )
+                |> Point2d.translateBy
+                    (Vector2d.xy
+                        (Length.meters translateX)
+                        (Length.meters translateY)
+                    )
     in
     Physics2d.Object.setPosition newPosition object
+
+
+removeOldBullets :
+    ObjectId
+    -> Physics2d.World.World ObjectId
+    -> Physics2d.Object.Object
+    -> Physics2d.Object.Object
+removeOldBullets objectId world object =
+    let
+        bulletMaxDuration =
+            Duration.milliseconds 1500
+    in
+    case objectId of
+        PlayerBullet _ ->
+            if
+                Quantity.greaterThan bulletMaxDuration
+                    (Physics2d.Object.age object)
+            then
+                Physics2d.Object.setShouldRemove object
+
+            else
+                object
+
+        _ ->
+            object
 
 
 subscriptions : Model -> Sub Msg
