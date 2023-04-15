@@ -24,16 +24,16 @@ import Random
 import Task
 
 
-type World
-    = World Internals
+type World group
+    = World (Internals group)
 
 
-type alias Internals =
+type alias Internals group =
     { dimensions :
         { x : Length.Length
         , y : Length.Length
         }
-    , objects : Dict ObjectId Physics2d.Object.Object
+    , objects : Dict ObjectId ( group, Physics2d.Object.Object )
     , timeSteps : Int
     , objectsCreatedThisStep : Int
     }
@@ -46,12 +46,12 @@ type ObjectId
 init :
     { width : Length.Length
     , height : Length.Length
-    , objects : List Physics2d.Object.Object
+    , objects : List ( group, Physics2d.Object.Object )
     }
-    -> World
+    -> World group
 init { width, height, objects } =
     let
-        initialWorld : World
+        initialWorld : World group
         initialWorld =
             World
                 { dimensions =
@@ -66,8 +66,11 @@ init { width, height, objects } =
     List.foldl addObject initialWorld objects
 
 
-addObject : Physics2d.Object.Object -> World -> World
-addObject object (World internals) =
+addObject :
+    ( group, Physics2d.Object.Object )
+    -> World group
+    -> World group
+addObject ( group, object ) (World internals) =
     let
         newObjectId : ObjectId
         newObjectId =
@@ -78,12 +81,16 @@ addObject object (World internals) =
     in
     World
         { internals
-            | objects = Dict.insert newObjectId object internals.objects
+            | objects =
+                Dict.insert
+                    newObjectId
+                    ( group, object )
+                    internals.objects
             , objectsCreatedThisStep = internals.objectsCreatedThisStep + 1
         }
 
 
-removeObject : ObjectId -> Physics2d.Object.Object -> World -> World
+removeObject : ObjectId -> Physics2d.Object.Object -> World group -> World group
 removeObject id object (World internals) =
     World
         { internals
@@ -91,20 +98,23 @@ removeObject id object (World internals) =
         }
 
 
-simulate : World -> World
+simulate : World group -> World group
 simulate (World internals) =
     World
         { internals
             | objects =
                 internals.objects
-                    |> Dict.map (\id -> Physics2d.Object.integrate)
+                    |> Dict.map
+                        (\id ( group, object ) ->
+                            ( group, Physics2d.Object.integrate object )
+                        )
             , timeSteps = internals.timeSteps + 1
             , objectsCreatedThisStep = 0
         }
 
 
-viewData : World -> List Physics2d.Object.View
+viewData : World group -> List Physics2d.Object.View
 viewData (World internals) =
     internals.objects
         |> Dict.values
-        |> List.map Physics2d.Object.view
+        |> List.map (\( group, object ) -> Physics2d.Object.view object)

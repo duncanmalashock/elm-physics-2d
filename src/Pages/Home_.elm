@@ -41,7 +41,7 @@ page shared route =
 
 
 type alias Model =
-    { world : Physics2d.World.World
+    { world : Physics2d.World.World ObjectGroup
     , keys : AssocSet.Set Key
     , playerIsFiring : Bool
     }
@@ -55,9 +55,9 @@ type Key
     | Spacebar
 
 
-type ObjectId
+type ObjectGroup
     = PlayerShip
-    | PlayerBullet Int
+    | PlayerBullet
 
 
 init : () -> ( Model, Effect Msg )
@@ -83,7 +83,7 @@ init () =
                 { height = Length.meters 300
                 , width = Length.meters 300
                 , objects =
-                    [ playerShip
+                    [ ( PlayerShip, playerShip )
                     ]
                 }
       , keys = AssocSet.empty
@@ -105,7 +105,7 @@ update msg model =
     case msg of
         UpdateFrame ->
             let
-                updatedWorld : Physics2d.World.World
+                updatedWorld : Physics2d.World.World ObjectGroup
                 updatedWorld =
                     Physics2d.World.simulate model.world
 
@@ -132,7 +132,7 @@ update msg model =
             ( { model
                 | world =
                     model.world
-                        |> Physics2d.World.addObject newObject
+                        |> Physics2d.World.addObject ( PlayerBullet, newObject )
                 , playerIsFiring = False
               }
             , Effect.none
@@ -186,8 +186,8 @@ update msg model =
 
 updatePlayerShip :
     AssocSet.Set Key
-    -> ObjectId
-    -> Physics2d.World.World
+    -> ObjectGroup
+    -> Physics2d.World.World ObjectGroup
     -> Physics2d.Object.Object
     -> Physics2d.Object.Object
 updatePlayerShip keys objectId world object =
@@ -232,8 +232,8 @@ updatePlayerShip keys objectId world object =
 
 
 wrapAround :
-    ObjectId
-    -> Physics2d.World.World
+    ObjectGroup
+    -> Physics2d.World.World ObjectGroup
     -> Physics2d.Object.Object
     -> Physics2d.Object.Object
 wrapAround objectId world object =
@@ -273,29 +273,28 @@ wrapAround objectId world object =
     Physics2d.Object.setPosition newPosition object
 
 
-removeOldBullets :
-    ObjectId
-    -> Physics2d.World.World
-    -> Physics2d.Object.Object
-    -> Physics2d.Object.Object
-removeOldBullets objectId world object =
-    let
-        bulletMaxDuration =
-            Duration.milliseconds 1500
-    in
-    case objectId of
-        PlayerBullet _ ->
-            if
-                Quantity.greaterThan bulletMaxDuration
-                    (Physics2d.Object.age object)
-            then
-                Physics2d.Object.setShouldRemove object
 
-            else
-                object
-
-        _ ->
-            object
+-- removeOldBullets :
+--     ObjectGroup
+--     -> Physics2d.World.World
+--     -> Physics2d.Object.Object
+--     -> Physics2d.Object.Object
+-- removeOldBullets objectId world object =
+--     let
+--         bulletMaxDuration =
+--             Duration.milliseconds 1500
+--     in
+--     case objectId of
+--         PlayerBullet ->
+--             if
+--                 Quantity.greaterThan bulletMaxDuration
+--                     (Physics2d.Object.age object)
+--             then
+--                 Physics2d.Object.setShouldRemove object
+--             else
+--                 object
+--         _ ->
+--             object
 
 
 subscriptions : Model -> Sub Msg
@@ -349,7 +348,7 @@ view route model =
 
 viewSvg :
     { widthInPixels : Float, heightInPixels : Float }
-    -> Physics2d.World.World
+    -> Physics2d.World.World ObjectGroup
     -> Html.Html msg
 viewSvg { widthInPixels, heightInPixels } world =
     let

@@ -6,7 +6,6 @@ module Physics2d.Object exposing
     , heading, setHeading
     , angularSpeed, setAngularSpeed
     , age
-    , shouldRemove, setShouldRemove
     , integrate
     , areColliding
     , ShapeView(..)
@@ -41,11 +40,6 @@ module Physics2d.Object exposing
 # Age
 
 @docs age
-
-
-# Removal
-
-@docs shouldRemove, setShouldRemove
 
 
 # Integration
@@ -96,7 +90,6 @@ type alias Internals =
     , heading : Direction2d.Direction2d TopLeft
     , headingPrevious : Direction2d.Direction2d TopLeft
     , age : Duration.Duration
-    , shouldRemove : Bool
     }
 
 
@@ -165,7 +158,6 @@ initialInternals :
         , heading : Direction2d.Direction2d TopLeft
         , headingPrevious : Direction2d.Direction2d TopLeft
         , age : Duration.Duration
-        , shouldRemove : Bool
         , shape : shape
         }
 initialInternals config shape =
@@ -175,7 +167,6 @@ initialInternals config shape =
     , headingPrevious = config.heading
     , shape = shape
     , age = Duration.seconds 0
-    , shouldRemove = False
     }
 
 
@@ -284,16 +275,6 @@ setAngularSpeed newAngularSpeed (Object internals) =
 age : Object -> Duration.Duration
 age (Object internals) =
     internals.age
-
-
-shouldRemove : Object -> Bool
-shouldRemove (Object internals) =
-    internals.shouldRemove
-
-
-setShouldRemove : Object -> Object
-setShouldRemove (Object internals) =
-    Object { internals | shouldRemove = True }
 
 
 integrate : Object -> Object
