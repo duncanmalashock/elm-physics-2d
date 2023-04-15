@@ -41,7 +41,7 @@ page shared route =
 
 
 type alias Model =
-    { world : Physics2d.World.World ObjectId
+    { world : Physics2d.World.World
     , keys : AssocSet.Set Key
     , playerIsFiring : Bool
     }
@@ -83,7 +83,7 @@ init () =
                 { height = Length.meters 300
                 , width = Length.meters 300
                 , objects =
-                    [ ( PlayerShip, playerShip )
+                    [ playerShip
                     ]
                 }
       , keys = AssocSet.empty
@@ -105,33 +105,34 @@ update msg model =
     case msg of
         UpdateFrame ->
             let
-                ( updatedWorld, cmd ) =
-                    Physics2d.World.update
-                        { objectUpdateRules =
-                            [ updatePlayerShip model.keys
-                            , wrapAround
-                            , removeOldBullets
-                            ]
-                        , objectCreateRules =
-                            [ createPlayerBullet model.playerIsFiring
-                            ]
-                        , collisionRules =
-                            []
-                        , world = model.world
-                        }
+                updatedWorld : Physics2d.World.World
+                updatedWorld =
+                    Physics2d.World.simulate model.world
+
+                -- { objectUpdateRules =
+                --     [ updatePlayerShip model.keys
+                --     , wrapAround
+                --     , removeOldBullets
+                --     ]
+                -- , objectCreateRules =
+                --     [ createPlayerBullet model.playerIsFiring
+                --     ]
+                -- , collisionRules =
+                --     []
+                -- , world = model.world
+                -- }
             in
             ( { model | world = updatedWorld }
-            , Effect.sendCmd cmd
+            , Cmd.batch
+                []
+                |> Effect.sendCmd
             )
 
         PlayerBulletCreated newObject randomInt ->
             ( { model
                 | world =
                     model.world
-                        |> Physics2d.World.addObject
-                            { id = PlayerBullet randomInt
-                            , object = newObject
-                            }
+                        |> Physics2d.World.addObject newObject
                 , playerIsFiring = False
               }
             , Effect.none
@@ -153,41 +154,40 @@ update msg model =
             )
 
 
-createPlayerBullet :
-    Bool
-    -> Physics2d.World.World ObjectId
-    -> Maybe (Int -> Msg)
-createPlayerBullet isFiring world =
-    if isFiring then
-        Physics2d.World.getObject { id = PlayerShip } world
-            |> Maybe.map
-                (\player ->
-                    let
-                        initialVelocity =
-                            Vector2d.withLength (Length.meters 25)
-                                (Physics2d.Object.heading player)
-                                |> Vector2d.per Duration.second
-                                |> Vector2d.plus (Physics2d.Object.velocity player)
 
-                        newBullet : Physics2d.Object.Object
-                        newBullet =
-                            Physics2d.Object.fromCircle
-                                { position = Physics2d.Object.position player
-                                , radius = Length.meters 0.2
-                                }
-                                |> Physics2d.Object.setVelocity initialVelocity
-                    in
-                    PlayerBulletCreated newBullet
-                )
-
-    else
-        Nothing
+-- createPlayerBullet :
+--     Bool
+--     -> Physics2d.World.World
+--     -> Maybe (Int -> Msg)
+-- createPlayerBullet isFiring world =
+--     if isFiring then
+--         Physics2d.World.getObject { id = PlayerShip } world
+--             |> Maybe.map
+--                 (\player ->
+--                     let
+--                         initialVelocity =
+--                             Vector2d.withLength (Length.meters 25)
+--                                 (Physics2d.Object.heading player)
+--                                 |> Vector2d.per Duration.second
+--                                 |> Vector2d.plus (Physics2d.Object.velocity player)
+--                         newBullet : Physics2d.Object.Object
+--                         newBullet =
+--                             Physics2d.Object.fromCircle
+--                                 { position = Physics2d.Object.position player
+--                                 , radius = Length.meters 0.2
+--                                 }
+--                                 |> Physics2d.Object.setVelocity initialVelocity
+--                     in
+--                     PlayerBulletCreated newBullet
+--                 )
+--     else
+--         Nothing
 
 
 updatePlayerShip :
     AssocSet.Set Key
     -> ObjectId
-    -> Physics2d.World.World ObjectId
+    -> Physics2d.World.World
     -> Physics2d.Object.Object
     -> Physics2d.Object.Object
 updatePlayerShip keys objectId world object =
@@ -233,7 +233,7 @@ updatePlayerShip keys objectId world object =
 
 wrapAround :
     ObjectId
-    -> Physics2d.World.World ObjectId
+    -> Physics2d.World.World
     -> Physics2d.Object.Object
     -> Physics2d.Object.Object
 wrapAround objectId world object =
@@ -275,7 +275,7 @@ wrapAround objectId world object =
 
 removeOldBullets :
     ObjectId
-    -> Physics2d.World.World ObjectId
+    -> Physics2d.World.World
     -> Physics2d.Object.Object
     -> Physics2d.Object.Object
 removeOldBullets objectId world object =
@@ -349,7 +349,7 @@ view route model =
 
 viewSvg :
     { widthInPixels : Float, heightInPixels : Float }
-    -> Physics2d.World.World objectId
+    -> Physics2d.World.World
     -> Html.Html msg
 viewSvg { widthInPixels, heightInPixels } world =
     let
@@ -359,7 +359,7 @@ viewSvg { widthInPixels, heightInPixels } world =
 
         svgOutput : List (Svg.Svg msg)
         svgOutput =
-            Physics2d.World.objectViews world
+            Physics2d.World.viewData world
                 |> List.concatMap objectViewToSvg
 
         objectViewToSvg : Physics2d.Object.View -> List (Svg.Svg msg)
