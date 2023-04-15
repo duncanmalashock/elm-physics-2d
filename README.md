@@ -18,5 +18,4 @@ A simple physics engine in [Elm](https://elm-lang.org) for games and simulations
 
 ### Issues
 1. Incorrect translation between world units and screen units in example
-1. Destructuring to check for `objectId` matches requires a pair of tuple pattern matches (clunky and brittle)
 1. Lots of imports from elm-geometry and elm-units in example
