@@ -97,7 +97,7 @@ type Msg
     = UpdateFrame
     | KeyUp Key
     | KeyDown Key
-    | PlayerBulletCreated Physics2d.Object.Object Int
+    | PlayerBulletCreated Physics2d.Object.Object
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -107,28 +107,21 @@ update msg model =
             let
                 updatedWorld : Physics2d.World.World ObjectGroup
                 updatedWorld =
-                    Physics2d.World.simulate model.world
-
-                -- { objectUpdateRules =
-                --     [ updatePlayerShip model.keys
-                --     , wrapAround
-                --     , removeOldBullets
-                --     ]
-                -- , objectCreateRules =
-                --     [ createPlayerBullet model.playerIsFiring
-                --     ]
-                -- , collisionRules =
-                --     []
-                -- , world = model.world
-                -- }
+                    model.world
+                        |> Physics2d.World.updateGroups [ PlayerShip ]
+                            (updatePlayerShip model.keys)
+                        |> Physics2d.World.updateAll wrapAround
+                        |> Physics2d.World.removeObjectIf [ PlayerBullet ]
+                            bulletIsPastMaxDuration
+                        |> Physics2d.World.simulate
             in
             ( { model | world = updatedWorld }
-            , Cmd.batch
-                []
-                |> Effect.sendCmd
+            , Effect.batch
+                [ createPlayerBullet model.playerIsFiring updatedWorld
+                ]
             )
 
-        PlayerBulletCreated newObject randomInt ->
+        PlayerBulletCreated newObject ->
             ( { model
                 | world =
                     model.world
@@ -154,89 +147,80 @@ update msg model =
             )
 
 
+createPlayerBullet : Bool -> Physics2d.World.World ObjectGroup -> Effect Msg
+createPlayerBullet isFiring world =
+    if isFiring then
+        Physics2d.World.getObjects [ PlayerShip ] world
+            |> List.map
+                (\player ->
+                    let
+                        initialVelocity =
+                            Vector2d.withLength (Length.meters 25)
+                                (Physics2d.Object.heading player)
+                                |> Vector2d.per Duration.second
+                                |> Vector2d.plus (Physics2d.Object.velocity player)
 
--- createPlayerBullet :
---     Bool
---     -> Physics2d.World.World
---     -> Maybe (Int -> Msg)
--- createPlayerBullet isFiring world =
---     if isFiring then
---         Physics2d.World.getObject { id = PlayerShip } world
---             |> Maybe.map
---                 (\player ->
---                     let
---                         initialVelocity =
---                             Vector2d.withLength (Length.meters 25)
---                                 (Physics2d.Object.heading player)
---                                 |> Vector2d.per Duration.second
---                                 |> Vector2d.plus (Physics2d.Object.velocity player)
---                         newBullet : Physics2d.Object.Object
---                         newBullet =
---                             Physics2d.Object.fromCircle
---                                 { position = Physics2d.Object.position player
---                                 , radius = Length.meters 0.2
---                                 }
---                                 |> Physics2d.Object.setVelocity initialVelocity
---                     in
---                     PlayerBulletCreated newBullet
---                 )
---     else
---         Nothing
+                        newBullet : Physics2d.Object.Object
+                        newBullet =
+                            Physics2d.Object.fromCircle
+                                { position = Physics2d.Object.position player
+                                , radius = Length.meters 0.2
+                                }
+                                |> Physics2d.Object.setVelocity initialVelocity
+                    in
+                    Effect.sendMsg (PlayerBulletCreated newBullet)
+                )
+            |> Effect.batch
+
+    else
+        Effect.none
 
 
 updatePlayerShip :
     AssocSet.Set Key
-    -> ObjectGroup
-    -> Physics2d.World.World ObjectGroup
     -> Physics2d.Object.Object
     -> Physics2d.Object.Object
-updatePlayerShip keys objectId world object =
-    if objectId == PlayerShip then
-        let
-            turnKeyMultiplier : number
-            turnKeyMultiplier =
-                List.sum
-                    [ if AssocSet.member LeftArrow keys then
-                        1
+updatePlayerShip keys ship =
+    let
+        turnKeyMultiplier : number
+        turnKeyMultiplier =
+            List.sum
+                [ if AssocSet.member LeftArrow keys then
+                    1
 
-                      else
-                        0
-                    , if AssocSet.member RightArrow keys then
-                        -1
+                  else
+                    0
+                , if AssocSet.member RightArrow keys then
+                    -1
 
-                      else
-                        0
-                    ]
+                  else
+                    0
+                ]
 
-            angularSpeed : AngularSpeed.AngularSpeed
-            angularSpeed =
-                AngularSpeed.turnsPerSecond 0.4
-                    |> Quantity.multiplyBy turnKeyMultiplier
+        angularSpeed : AngularSpeed.AngularSpeed
+        angularSpeed =
+            AngularSpeed.turnsPerSecond 0.4
+                |> Quantity.multiplyBy turnKeyMultiplier
 
-            velocityToAdd : Vector2d.Vector2d Speed.MetersPerSecond TopLeft
-            velocityToAdd =
-                if AssocSet.member UpArrow keys then
-                    Vector2d.withLength (Length.meters 0.125)
-                        (Physics2d.Object.heading object)
-                        |> Vector2d.per Duration.second
+        velocityToAdd : Vector2d.Vector2d Speed.MetersPerSecond TopLeft
+        velocityToAdd =
+            if AssocSet.member UpArrow keys then
+                Vector2d.withLength (Length.meters 0.125)
+                    (Physics2d.Object.heading ship)
+                    |> Vector2d.per Duration.second
 
-                else
-                    Vector2d.zero
-        in
-        object
-            |> Physics2d.Object.setAngularSpeed angularSpeed
-            |> Physics2d.Object.addVelocity velocityToAdd
-
-    else
-        object
+            else
+                Vector2d.zero
+    in
+    ship
+        |> Physics2d.Object.setAngularSpeed angularSpeed
+        |> Physics2d.Object.addVelocity velocityToAdd
 
 
 wrapAround :
-    ObjectGroup
-    -> Physics2d.World.World ObjectGroup
+    Physics2d.Object.Object
     -> Physics2d.Object.Object
-    -> Physics2d.Object.Object
-wrapAround objectId world object =
+wrapAround object =
     let
         { x, y } =
             Physics2d.Object.position object
@@ -273,28 +257,14 @@ wrapAround objectId world object =
     Physics2d.Object.setPosition newPosition object
 
 
-
--- removeOldBullets :
---     ObjectGroup
---     -> Physics2d.World.World
---     -> Physics2d.Object.Object
---     -> Physics2d.Object.Object
--- removeOldBullets objectId world object =
---     let
---         bulletMaxDuration =
---             Duration.milliseconds 1500
---     in
---     case objectId of
---         PlayerBullet ->
---             if
---                 Quantity.greaterThan bulletMaxDuration
---                     (Physics2d.Object.age object)
---             then
---                 Physics2d.Object.setShouldRemove object
---             else
---                 object
---         _ ->
---             object
+bulletIsPastMaxDuration : Physics2d.Object.Object -> Bool
+bulletIsPastMaxDuration object =
+    let
+        bulletMaxDuration =
+            Duration.milliseconds 1500
+    in
+    Quantity.greaterThan bulletMaxDuration
+        (Physics2d.Object.age object)
 
 
 subscriptions : Model -> Sub Msg

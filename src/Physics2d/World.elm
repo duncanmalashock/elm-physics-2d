@@ -1,16 +1,22 @@
 module Physics2d.World exposing
     ( World
     , init
-    , addObject, removeObject
+    , addObject
+    , removeObjectIf
+    , updateGroups, updateAll
     , simulate
     , viewData
+    , getObjects
     )
 
 {-|
 
 @docs World
 @docs init
-@docs addObject, removeObject
+@docs addObject
+@docs removeObjectIf
+@docs getObjectsInGroup
+@docs updateGroups, updateAll
 @docs simulate
 @docs viewData
 
@@ -90,11 +96,74 @@ addObject ( group, object ) (World internals) =
         }
 
 
-removeObject : ObjectId -> Physics2d.Object.Object -> World group -> World group
-removeObject id object (World internals) =
+getObjects : List group -> World group -> List Physics2d.Object.Object
+getObjects groups (World internals) =
+    internals.objects
+        |> Dict.filter
+            (\id ( group, object ) ->
+                List.member group groups
+            )
+        |> Dict.values
+        |> List.map (\( group, object ) -> object)
+
+
+updateGroups :
+    List group
+    -> (Physics2d.Object.Object -> Physics2d.Object.Object)
+    -> World group
+    -> World group
+updateGroups groupsToInclude fn (World internals) =
     World
         { internals
-            | objects = Dict.remove id internals.objects
+            | objects =
+                internals.objects
+                    |> Dict.map
+                        (\id ( group, object ) ->
+                            ( group
+                            , if List.member group groupsToInclude then
+                                fn object
+
+                              else
+                                object
+                            )
+                        )
+        }
+
+
+removeObjectIf :
+    List group
+    -> (Physics2d.Object.Object -> Bool)
+    -> World group
+    -> World group
+removeObjectIf groupsToInclude predicate (World internals) =
+    World
+        { internals
+            | objects =
+                Dict.filter
+                    (\id ( group, object ) ->
+                        if List.member group groupsToInclude then
+                            not (predicate object)
+
+                        else
+                            True
+                    )
+                    internals.objects
+        }
+
+
+updateAll :
+    (Physics2d.Object.Object -> Physics2d.Object.Object)
+    -> World group
+    -> World group
+updateAll fn (World internals) =
+    World
+        { internals
+            | objects =
+                internals.objects
+                    |> Dict.map
+                        (\id ( group, object ) ->
+                            ( group, fn object )
+                        )
         }
 
 
