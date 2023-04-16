@@ -105,7 +105,6 @@ type Msg
     = UpdateFrame
     | KeyUp Key
     | KeyDown Key
-    | PlayerBulletCreated Physics2d.Object.Object
     | NewAsteroidAngleGenerated Float
     | PlayerBulletHitAsteroid (Physics2d.World.Collision ObjectGroup)
 
@@ -123,19 +122,22 @@ update msg model =
                         |> Physics2d.World.updateAll wrapAround
                         |> Physics2d.World.removeObjectIf [ PlayerBullet ]
                             bulletIsPastMaxDuration
+                        |> createPlayerBullet model.playerIsFiring
                         |> Physics2d.World.simulate
             in
-            ( { model | world = updatedWorld }
-            , Effect.batch
-                [ createPlayerBullet model.playerIsFiring updatedWorld
-                , createNewAsteroidWave model.shouldCreateNewWave
+            ( { model
+                | world = updatedWorld
+                , playerIsFiring = False
+              }
+            , Cmd.batch
+                [ createNewAsteroidWave model.shouldCreateNewWave
                 , Physics2d.World.onOverlap
                     { msg = PlayerBulletHitAsteroid
                     , betweenGroups = ( Asteroid, PlayerBullet )
                     , world = updatedWorld
                     }
-                    |> Effect.sendCmd
                 ]
+                |> Effect.sendCmd
             )
 
         KeyDown key ->
@@ -153,21 +155,10 @@ update msg model =
             , Effect.none
             )
 
-        PlayerBulletCreated newObject ->
-            ( { model
-                | world =
-                    model.world
-                        |> Physics2d.World.addObject
-                            ( PlayerBullet, newObject )
-                , playerIsFiring = False
-              }
-            , Effect.none
-            )
-
         NewAsteroidAngleGenerated angleTurns ->
             let
                 newVector =
-                    Vector2d.rTheta (Length.meters 40) (Angle.turns angleTurns)
+                    Vector2d.rTheta (Length.meters 60) (Angle.turns angleTurns)
 
                 newPosition =
                     Point2d.xy (Length.meters 30) (Length.meters 30)
@@ -182,7 +173,7 @@ update msg model =
 
                 initialVelocity =
                     Vector2d.withLength (Length.meters 1)
-                        (Angle.turns angleTurns
+                        (Angle.turns (angleTurns + 0.5)
                             |> Direction2d.fromAngle
                         )
                         |> Vector2d.per Duration.second
@@ -216,7 +207,10 @@ update msg model =
             )
 
 
-createPlayerBullet : Bool -> Physics2d.World.World ObjectGroup -> Effect Msg
+createPlayerBullet :
+    Bool
+    -> Physics2d.World.World ObjectGroup
+    -> Physics2d.World.World ObjectGroup
 createPlayerBullet isFiring world =
     if isFiring then
         Physics2d.World.getObjects [ PlayerShip ] world
@@ -238,28 +232,23 @@ createPlayerBullet isFiring world =
                                 }
                                 |> Physics2d.Object.setVelocity initialVelocity
                     in
-                    Effect.sendMsg (PlayerBulletCreated newBullet)
+                    ( PlayerBullet, newBullet )
                 )
-            |> Effect.batch
+            |> List.foldl Physics2d.World.addObject world
 
     else
-        Effect.none
+        world
 
 
-createNewAsteroidWave : Bool -> Effect Msg
+createNewAsteroidWave : Bool -> Cmd Msg
 createNewAsteroidWave shouldCreateNewWave =
-    (if shouldCreateNewWave then
+    if shouldCreateNewWave then
         List.repeat 6
-            (Random.generate
-                NewAsteroidAngleGenerated
-                (Random.float 0 1)
-            )
+            (Random.generate NewAsteroidAngleGenerated (Random.float 0 1))
             |> Cmd.batch
 
-     else
+    else
         Cmd.none
-    )
-        |> Effect.sendCmd
 
 
 updatePlayerShip :
