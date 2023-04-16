@@ -82,6 +82,8 @@ init () =
                             ]
                         }
                 }
+                |> Physics2d.Object.setHeading
+                    (Angle.turns 0.25 |> Direction2d.fromAngle)
     in
     ( { world =
             Physics2d.World.init
@@ -105,6 +107,7 @@ type Msg
     | KeyDown Key
     | PlayerBulletCreated Physics2d.Object.Object
     | NewAsteroidAngleGenerated Float
+    | PlayerBulletHitAsteroid (Physics2d.World.Collision ObjectGroup)
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -126,7 +129,28 @@ update msg model =
             , Effect.batch
                 [ createPlayerBullet model.playerIsFiring updatedWorld
                 , createNewAsteroidWave model.shouldCreateNewWave
+                , Physics2d.World.onOverlap
+                    { msg = PlayerBulletHitAsteroid
+                    , betweenGroups = ( Asteroid, PlayerBullet )
+                    , world = updatedWorld
+                    }
+                    |> Effect.sendCmd
                 ]
+            )
+
+        KeyDown key ->
+            ( { model
+                | keys = AssocSet.insert key model.keys
+                , playerIsFiring = key == Spacebar
+              }
+            , Effect.none
+            )
+
+        KeyUp key ->
+            ( { model
+                | keys = AssocSet.remove key model.keys
+              }
+            , Effect.none
             )
 
         PlayerBulletCreated newObject ->
@@ -181,17 +205,12 @@ update msg model =
             , Effect.none
             )
 
-        KeyDown key ->
+        PlayerBulletHitAsteroid { objectA, objectB } ->
             ( { model
-                | keys = AssocSet.insert key model.keys
-                , playerIsFiring = key == Spacebar
-              }
-            , Effect.none
-            )
-
-        KeyUp key ->
-            ( { model
-                | keys = AssocSet.remove key model.keys
+                | world =
+                    model.world
+                        |> Physics2d.World.removeObject objectA.objectId
+                        |> Physics2d.World.removeObject objectB.objectId
               }
             , Effect.none
             )

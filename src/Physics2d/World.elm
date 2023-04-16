@@ -1,24 +1,28 @@
 module Physics2d.World exposing
     ( World
     , init
-    , addObject
+    , addObject, removeObject
     , removeObjectIf
+    , getObjects
     , updateGroups, updateAll
+    , onOverlap, Collision
     , simulate
     , viewData
-    , getObjects
+    , ObjectId
     )
 
 {-|
 
 @docs World
 @docs init
-@docs addObject
+@docs addObject, removeObject
 @docs removeObjectIf
-@docs getObjectsInGroup
+@docs getObjects
 @docs updateGroups, updateAll
+@docs onOverlap, Collision
 @docs simulate
 @docs viewData
+@docs ObjectId
 
 -}
 
@@ -130,6 +134,18 @@ updateGroups groupsToInclude fn (World internals) =
         }
 
 
+removeObject :
+    ObjectId
+    -> World group
+    -> World group
+removeObject id (World internals) =
+    World
+        { internals
+            | objects =
+                Dict.remove id internals.objects
+        }
+
+
 removeObjectIf :
     List group
     -> (Physics2d.Object.Object -> Bool)
@@ -165,6 +181,104 @@ updateAll fn (World internals) =
                             ( group, fn object )
                         )
         }
+
+
+type alias Collision group =
+    { objectA :
+        { objectId : ObjectId
+        , group : group
+        , object : Physics2d.Object.Object
+        }
+    , objectB :
+        { objectId : ObjectId
+        , group : group
+        , object : Physics2d.Object.Object
+        }
+    }
+
+
+onOverlap :
+    { msg : Collision group -> msg
+    , betweenGroups : ( group, group )
+    , world : World group
+    }
+    -> Cmd msg
+onOverlap { msg, betweenGroups, world } =
+    let
+        ( groupA, groupB ) =
+            betweenGroups
+
+        listA =
+            getMembersOfGroup groupA world
+
+        listB =
+            getMembersOfGroup groupB world
+
+        pairs =
+            listA
+                |> List.concatMap
+                    (\a ->
+                        List.map
+                            (\b ->
+                                ( a, b )
+                            )
+                            listB
+                    )
+
+        pairToMaybeMsg :
+            ( { objectId : ObjectId
+              , group : group
+              , object : Physics2d.Object.Object
+              }
+            , { objectId : ObjectId
+              , group : group
+              , object : Physics2d.Object.Object
+              }
+            )
+            -> Maybe msg
+        pairToMaybeMsg ( a, b ) =
+            if Physics2d.Object.areColliding a.object b.object then
+                Just (msg { objectA = a, objectB = b })
+
+            else
+                Nothing
+
+        msgToCmd : msg -> Cmd msg
+        msgToCmd msgToConvert =
+            Task.succeed msgToConvert
+                |> Task.perform identity
+    in
+    pairs
+        |> List.filterMap pairToMaybeMsg
+        |> List.map msgToCmd
+        |> Cmd.batch
+
+
+getMembersOfGroup :
+    group
+    -> World group
+    ->
+        List
+            { objectId : ObjectId
+            , group : group
+            , object : Physics2d.Object.Object
+            }
+getMembersOfGroup groupToMatch (World internals) =
+    internals.objects
+        |> Dict.map
+            (\id ( group, object ) ->
+                if group == groupToMatch then
+                    Just
+                        { objectId = id
+                        , group = group
+                        , object = object
+                        }
+
+                else
+                    Nothing
+            )
+        |> Dict.values
+        |> List.filterMap identity
 
 
 simulate : World group -> World group
