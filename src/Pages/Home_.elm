@@ -1,9 +1,11 @@
 module Pages.Home_ exposing (Model, Msg, page)
 
+import Angle
 import AngularSpeed
 import AssocSet
 import Browser.Events
 import Circle2d
+import Direction2d
 import Duration
 import Effect exposing (Effect)
 import Frame2d
@@ -21,6 +23,7 @@ import Pixels
 import Point2d
 import Polygon2d
 import Quantity
+import Random
 import Route
 import Shared
 import Speed
@@ -44,6 +47,7 @@ type alias Model =
     { world : Physics2d.World.World ObjectGroup
     , keys : AssocSet.Set Key
     , playerIsFiring : Bool
+    , shouldCreateNewWave : Bool
     }
 
 
@@ -58,6 +62,7 @@ type Key
 type ObjectGroup
     = PlayerShip
     | PlayerBullet
+    | Asteroid
 
 
 init : () -> ( Model, Effect Msg )
@@ -88,6 +93,7 @@ init () =
                 }
       , keys = AssocSet.empty
       , playerIsFiring = False
+      , shouldCreateNewWave = True
       }
     , Effect.none
     )
@@ -98,6 +104,7 @@ type Msg
     | KeyUp Key
     | KeyDown Key
     | PlayerBulletCreated Physics2d.Object.Object
+    | NewAsteroidAngleGenerated Float
 
 
 update : Msg -> Model -> ( Model, Effect Msg )
@@ -118,6 +125,7 @@ update msg model =
             ( { model | world = updatedWorld }
             , Effect.batch
                 [ createPlayerBullet model.playerIsFiring updatedWorld
+                , createNewAsteroidWave model.shouldCreateNewWave
                 ]
             )
 
@@ -125,8 +133,50 @@ update msg model =
             ( { model
                 | world =
                     model.world
-                        |> Physics2d.World.addObject ( PlayerBullet, newObject )
+                        |> Physics2d.World.addObject
+                            ( PlayerBullet, newObject )
                 , playerIsFiring = False
+              }
+            , Effect.none
+            )
+
+        NewAsteroidAngleGenerated angleTurns ->
+            let
+                newVector =
+                    Vector2d.rTheta (Length.meters 40) (Angle.turns angleTurns)
+
+                newPosition =
+                    Point2d.xy (Length.meters 30) (Length.meters 30)
+                        |> Point2d.translateBy newVector
+                        |> Point2d.toTuple Length.inMeters
+                        |> (\( x, y ) ->
+                                Point2d.fromTuple Length.meters
+                                    ( Basics.clamp 0 60 x
+                                    , Basics.clamp 0 60 y
+                                    )
+                           )
+
+                initialVelocity =
+                    Vector2d.withLength (Length.meters 1)
+                        (Angle.turns angleTurns
+                            |> Direction2d.fromAngle
+                        )
+                        |> Vector2d.per Duration.second
+
+                newAsteroid : Physics2d.Object.Object
+                newAsteroid =
+                    Physics2d.Object.fromCircle
+                        { position = newPosition
+                        , radius = Length.meters 3
+                        }
+                        |> Physics2d.Object.setVelocity initialVelocity
+            in
+            ( { model
+                | shouldCreateNewWave = False
+                , world =
+                    model.world
+                        |> Physics2d.World.addObject
+                            ( Asteroid, newAsteroid )
               }
             , Effect.none
             )
@@ -158,7 +208,8 @@ createPlayerBullet isFiring world =
                             Vector2d.withLength (Length.meters 25)
                                 (Physics2d.Object.heading player)
                                 |> Vector2d.per Duration.second
-                                |> Vector2d.plus (Physics2d.Object.velocity player)
+                                |> Vector2d.plus
+                                    (Physics2d.Object.velocity player)
 
                         newBullet : Physics2d.Object.Object
                         newBullet =
@@ -174,6 +225,22 @@ createPlayerBullet isFiring world =
 
     else
         Effect.none
+
+
+createNewAsteroidWave : Bool -> Effect Msg
+createNewAsteroidWave shouldCreateNewWave =
+    (if shouldCreateNewWave then
+        List.repeat 6
+            (Random.generate
+                NewAsteroidAngleGenerated
+                (Random.float 0 1)
+            )
+            |> Cmd.batch
+
+     else
+        Cmd.none
+    )
+        |> Effect.sendCmd
 
 
 updatePlayerShip :
