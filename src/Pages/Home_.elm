@@ -47,7 +47,7 @@ type alias Model =
     { world : Physics2d.World.World ObjectGroup
     , keys : AssocSet.Set Key
     , playerIsFiring : Bool
-    , shouldCreateNewWave : Bool
+    , shouldCreateNewAsteroids : Bool
     }
 
 
@@ -95,7 +95,7 @@ init () =
                 }
       , keys = AssocSet.empty
       , playerIsFiring = False
-      , shouldCreateNewWave = True
+      , shouldCreateNewAsteroids = True
       }
     , Effect.none
     )
@@ -130,7 +130,7 @@ update msg model =
                 , playerIsFiring = False
               }
             , Cmd.batch
-                [ createNewAsteroidWave model.shouldCreateNewWave
+                [ createNewAsteroids model.shouldCreateNewAsteroids
                 , Physics2d.World.onOverlap
                     { msg = PlayerBulletHitAsteroid
                     , betweenGroups = ( Asteroid, PlayerBullet )
@@ -187,7 +187,7 @@ update msg model =
                         |> Physics2d.Object.setVelocity initialVelocity
             in
             ( { model
-                | shouldCreateNewWave = False
+                | shouldCreateNewAsteroids = False
                 , world =
                     model.world
                         |> Physics2d.World.addObject
@@ -240,9 +240,9 @@ createPlayerBullet isFiring world =
         world
 
 
-createNewAsteroidWave : Bool -> Cmd Msg
-createNewAsteroidWave shouldCreateNewWave =
-    if shouldCreateNewWave then
+createNewAsteroids : Bool -> Cmd Msg
+createNewAsteroids shouldCreateNewAsteroids =
+    if shouldCreateNewAsteroids then
         List.repeat 6
             (Random.generate NewAsteroidAngleGenerated (Random.float 0 1))
             |> Cmd.batch
