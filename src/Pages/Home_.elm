@@ -178,13 +178,21 @@ update msg model =
                         )
                         |> Vector2d.per Duration.second
 
+                initialAngularSpeed =
+                    Angle.turns 0.05
+                        |> Quantity.per Duration.second
+
                 newAsteroid : Physics2d.Object.Object
                 newAsteroid =
-                    Physics2d.Object.fromCircle
+                    Physics2d.Object.fromPolygon
                         { position = newPosition
-                        , radius = Length.meters 3
+                        , polygon =
+                            Physics2d.Polygon.square
+                                { radius = Length.meters 3
+                                }
                         }
                         |> Physics2d.Object.setVelocity initialVelocity
+                        |> Physics2d.Object.setAngularSpeed initialAngularSpeed
             in
             ( { model
                 | shouldCreateNewAsteroids = False
@@ -226,9 +234,12 @@ createPlayerBullet isFiring world =
 
                         newBullet : Physics2d.Object.Object
                         newBullet =
-                            Physics2d.Object.fromCircle
+                            Physics2d.Object.fromPolygon
                                 { position = Physics2d.Object.position player
-                                , radius = Length.meters 0.2
+                                , polygon =
+                                    Physics2d.Polygon.square
+                                        { radius = Length.meters 0.3
+                                        }
                                 }
                                 |> Physics2d.Object.setVelocity initialVelocity
                     in
