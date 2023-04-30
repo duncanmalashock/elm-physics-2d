@@ -97,22 +97,72 @@ areColliding : Object -> Object -> Bool
 areColliding (Object internals1) (Object internals2) =
     case ( internals1.shape, internals2.shape ) of
         ( CircleShape circle1, CircleShape circle2 ) ->
-            let
-                distanceBetweenCenters =
-                    Point2d.distanceFrom
-                        internals1.position
-                        internals2.position
+            circlesAreColliding ( internals1, circle1 ) ( internals2, circle2 )
 
-                radiusSum =
-                    Quantity.sum
-                        [ Physics2d.Circle.radius circle1
-                        , Physics2d.Circle.radius circle2
-                        ]
-            in
-            Quantity.lessThanOrEqualTo radiusSum distanceBetweenCenters
+        ( PolygonShape polygon1, PolygonShape polygon2 ) ->
+            polygonsAreColliding ( internals1, polygon1 ) ( internals2, polygon2 )
 
-        _ ->
-            False
+        ( PolygonShape polygon, CircleShape circle ) ->
+            polygonAndCircleAreColliding ( internals1, polygon ) ( internals2, circle )
+
+        ( CircleShape circle, PolygonShape polygon ) ->
+            polygonAndCircleAreColliding ( internals2, polygon ) ( internals1, circle )
+
+
+circlesAreColliding :
+    ( Internals, Physics2d.Circle.Circle )
+    -> ( Internals, Physics2d.Circle.Circle )
+    -> Bool
+circlesAreColliding ( internals1, circle1 ) ( internals2, circle2 ) =
+    let
+        distanceBetweenCenters =
+            Point2d.distanceFrom
+                internals1.position
+                internals2.position
+
+        radiusSum =
+            Quantity.sum
+                [ Physics2d.Circle.radius circle1
+                , Physics2d.Circle.radius circle2
+                ]
+    in
+    Quantity.lessThanOrEqualTo radiusSum distanceBetweenCenters
+
+
+polygonsAreColliding :
+    ( Internals, Physics2d.Polygon.Polygon )
+    -> ( Internals, Physics2d.Polygon.Polygon )
+    -> Bool
+polygonsAreColliding ( internals1, polygon1 ) ( internals2, polygon2 ) =
+    -- Separating Axis Theorem tests whether there is an axis that separates
+    -- two polygons, testing a finite set of axes comprised of the normals
+    -- of each side of each polygon.
+    --
+    -- 1. Get axes
+    -- get all sides of each polygon
+    -- (implement Polygon.toSides)
+    -- get normals of each side
+    -- (using LineSegment2d.perpendicularDirection)
+    -- create an axis from each normal
+    --
+    -- 2. Test separation on each axis
+    -- for both polygons, project all vertices onto the axis
+    -- (Using Point2d.signedDistanceAlong, Axis2d.withDirection, and Point2d.origin)
+    -- get the max and min for both projected vertices
+    -- (Using Quantity.minimum and Quantity.maximum)
+    -- test two conditions:
+    -- max1 <= min2 or min1 >= max2
+    -- (using Quantity.greaterThanOrEqualTo and Quantity.lessThanOrEqualTo)
+    -- if true for any axis, polygons are not colliding
+    False
+
+
+polygonAndCircleAreColliding :
+    ( Internals, Physics2d.Polygon.Polygon )
+    -> ( Internals, Physics2d.Circle.Circle )
+    -> Bool
+polygonAndCircleAreColliding ( internals1, polygon ) ( internals2, circle ) =
+    False
 
 
 fromPolygon :
