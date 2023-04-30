@@ -254,7 +254,7 @@ createPlayerBullet isFiring world =
 createNewAsteroids : Bool -> Cmd Msg
 createNewAsteroids shouldCreateNewAsteroids =
     if shouldCreateNewAsteroids then
-        List.repeat 6
+        List.repeat 1
             (Random.generate NewAsteroidAngleGenerated (Random.float 0 1))
             |> Cmd.batch
 

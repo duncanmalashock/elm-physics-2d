@@ -2,7 +2,7 @@ module Physics2d.Polygon exposing
     ( Polygon
     , triangle, square, pentagon, hexagon
     , regular, custom
-    , toPoints
+    , toPoints, toLineSegments
     )
 
 {-|
@@ -10,15 +10,19 @@ module Physics2d.Polygon exposing
 @docs Polygon
 @docs triangle, square, pentagon, hexagon
 @docs regular, custom
-@docs toPoints
+@docs toPoints, toLineSegments
 
 -}
 
 import Angle
+import Direction2d
 import Length
+import LineSegment2d
 import Physics2d.CoordinateSystem exposing (TopLeft)
 import Point2d
+import Polygon2d
 import Quantity
+import Vector2d
 
 
 type Polygon
@@ -26,7 +30,7 @@ type Polygon
 
 
 type alias Internals =
-    { vertices : List (Point2d.Point2d Length.Meters TopLeft)
+    { polygon : Polygon2d.Polygon2d Length.Meters TopLeft
     }
 
 
@@ -88,17 +92,50 @@ regular { sides, radius } =
                 |> List.map toVertex
     in
     Polygon
-        { vertices = vertices
+        { polygon = Polygon2d.singleLoop vertices
         }
 
 
 custom : { vertices : List (Point2d.Point2d Length.Meters TopLeft) } -> Polygon
 custom { vertices } =
-    Polygon { vertices = vertices }
+    Polygon { polygon = Polygon2d.singleLoop vertices }
 
 
 toPoints :
-    Polygon
+    { position : Point2d.Point2d Length.Meters TopLeft
+    , heading : Direction2d.Direction2d TopLeft
+    }
+    -> Polygon
     -> List (Point2d.Point2d Length.Meters TopLeft)
-toPoints (Polygon { vertices }) =
-    vertices
+toPoints { position, heading } (Polygon { polygon }) =
+    polygon
+        |> Polygon2d.vertices
+        |> List.map
+            (Point2d.rotateAround
+                Point2d.origin
+                (Direction2d.toAngle heading)
+            )
+        |> List.map
+            (Point2d.translateBy
+                (Vector2d.from Point2d.origin position)
+            )
+
+
+toLineSegments :
+    { position : Point2d.Point2d Length.Meters TopLeft
+    , heading : Direction2d.Direction2d TopLeft
+    }
+    -> Polygon
+    -> List (LineSegment2d.LineSegment2d Length.Meters TopLeft)
+toLineSegments { position, heading } (Polygon { polygon }) =
+    polygon
+        |> Polygon2d.edges
+        |> List.map
+            (LineSegment2d.rotateAround
+                Point2d.origin
+                (Direction2d.toAngle heading)
+            )
+        |> List.map
+            (LineSegment2d.translateBy
+                (Vector2d.from Point2d.origin position)
+            )

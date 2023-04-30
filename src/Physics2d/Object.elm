@@ -61,9 +61,11 @@ module Physics2d.Object exposing
 
 import Angle
 import AngularSpeed
+import Axis2d
 import Direction2d
 import Duration
 import Length
+import LineSegment2d
 import Physics2d.Circle
 import Physics2d.CoordinateSystem exposing (TopLeft)
 import Physics2d.Polygon
@@ -134,27 +136,135 @@ polygonsAreColliding :
     -> ( Internals, Physics2d.Polygon.Polygon )
     -> Bool
 polygonsAreColliding ( internals1, polygon1 ) ( internals2, polygon2 ) =
-    -- Separating Axis Theorem tests whether there is an axis that separates
-    -- two polygons, testing a finite set of axes comprised of the normals
-    -- of each side of each polygon.
-    --
-    -- 1. Get axes
-    -- get all sides of each polygon
-    -- (implement Polygon.toSides)
-    -- get normals of each side
-    -- (using LineSegment2d.perpendicularDirection)
-    -- create an axis from each normal
-    --
-    -- 2. Test separation on each axis
-    -- for both polygons, project all vertices onto the axis
-    -- (Using Point2d.signedDistanceAlong, Axis2d.withDirection, and Point2d.origin)
-    -- get the max and min for both projected vertices
-    -- (Using Quantity.minimum and Quantity.maximum)
-    -- test two conditions:
-    -- max1 <= min2 or min1 >= max2
-    -- (using Quantity.greaterThanOrEqualTo and Quantity.lessThanOrEqualTo)
-    -- if true for any axis, polygons are not colliding
-    False
+    let
+        -- Separating Axis Theorem tests whether there is an axis that separates
+        -- two polygons, testing a finite set of axes made from the normals of
+        -- each side of each polygon.
+        --
+        -- 1. Get axes
+        -- get all sides of each polygon
+        polygon1Sides : List (LineSegment2d.LineSegment2d Length.Meters TopLeft)
+        polygon1Sides =
+            Physics2d.Polygon.toLineSegments
+                { position = internals1.position
+                , heading = internals1.heading
+                }
+                polygon1
+
+        polygon2Sides : List (LineSegment2d.LineSegment2d Length.Meters TopLeft)
+        polygon2Sides =
+            Physics2d.Polygon.toLineSegments
+                { position = internals2.position
+                , heading = internals2.heading
+                }
+                polygon2
+
+        allSides : List (LineSegment2d.LineSegment2d Length.Meters TopLeft)
+        allSides =
+            polygon1Sides ++ polygon2Sides
+
+        allAxes : List (Axis2d.Axis2d Length.Meters TopLeft)
+        allAxes =
+            allSides
+                -- get the normal of each side
+                |> List.filterMap LineSegment2d.perpendicularDirection
+                |> List.map
+                    (\direction ->
+                        -- create an axis from each normal
+                        Axis2d.withDirection direction Point2d.origin
+                    )
+
+        -- 2. Test separation on each axis
+        -- get all vertices of both polygons
+        polygon1Vertices : List (Point2d.Point2d Length.Meters TopLeft)
+        polygon1Vertices =
+            Physics2d.Polygon.toPoints
+                { position = internals1.position
+                , heading = internals1.heading
+                }
+                polygon1
+
+        polygon2Vertices : List (Point2d.Point2d Length.Meters TopLeft)
+        polygon2Vertices =
+            Physics2d.Polygon.toPoints
+                { position = internals2.position
+                , heading = internals2.heading
+                }
+                polygon2
+
+        allVertices : List (Point2d.Point2d Length.Meters TopLeft)
+        allVertices =
+            polygon1Vertices ++ polygon2Vertices
+
+        projectedMinAndMax :
+            Axis2d.Axis2d Length.Meters TopLeft
+            -> List (Point2d.Point2d Length.Meters TopLeft)
+            ->
+                Maybe
+                    { min : Quantity.Quantity Float Length.Meters
+                    , max : Quantity.Quantity Float Length.Meters
+                    }
+        projectedMinAndMax axis points =
+            let
+                allPointsProjected : List (Quantity.Quantity Float Length.Meters)
+                allPointsProjected =
+                    -- project vertices onto the axis
+                    points
+                        |> List.map (Point2d.signedDistanceAlong axis)
+
+                -- get the min and max for both sets of projected vertices
+                maybeMin : Maybe (Quantity.Quantity Float Length.Meters)
+                maybeMin =
+                    Quantity.minimum allPointsProjected
+
+                maybeMax : Maybe (Quantity.Quantity Float Length.Meters)
+                maybeMax =
+                    Quantity.maximum allPointsProjected
+            in
+            Maybe.map2
+                (\min max ->
+                    { min = min
+                    , max = max
+                    }
+                )
+                maybeMin
+                maybeMax
+
+        projectedMaxAndMinAreSeparate :
+            { min : Quantity.Quantity number Length.Meters
+            , max : Quantity.Quantity number Length.Meters
+            }
+            ->
+                { min : Quantity.Quantity number Length.Meters
+                , max : Quantity.Quantity number Length.Meters
+                }
+            -> Bool
+        projectedMaxAndMinAreSeparate minMax1 minMax2 =
+            (minMax1.max |> Quantity.greaterThanOrEqualTo minMax2.min)
+                || (minMax1.min |> Quantity.lessThanOrEqualTo minMax2.max)
+
+        areSeparableForAxis :
+            Axis2d.Axis2d Length.Meters TopLeft
+            -> Maybe Bool
+        areSeparableForAxis axis =
+            let
+                maybeMinMax1 =
+                    projectedMinAndMax axis polygon1Vertices
+                        |> Debug.log "maybeMinMax1"
+
+                maybeMinMax2 =
+                    projectedMinAndMax axis polygon2Vertices
+            in
+            Maybe.map2 projectedMaxAndMinAreSeparate
+                maybeMinMax1
+                maybeMinMax2
+                |> Debug.log "called areSeparableForAxis"
+    in
+    -- if not true for any axis, polygons are colliding
+    List.filterMap areSeparableForAxis allAxes
+        |> List.any identity
+        |> not
+        |> Debug.log "called polygonsAreColliding"
 
 
 polygonAndCircleAreColliding :
@@ -387,21 +497,11 @@ toShapeView internals =
         PolygonShape polygon ->
             PolygonShapeView
                 { vertices =
-                    Physics2d.Polygon.toPoints polygon
-                        |> List.map
-                            (Point2d.rotateAround
-                                Point2d.origin
-                                (internals.heading
-                                    |> Direction2d.toAngle
-                                )
-                            )
-                        |> List.map
-                            (Point2d.translateBy
-                                (Vector2d.from
-                                    Point2d.origin
-                                    internals.position
-                                )
-                            )
+                    Physics2d.Polygon.toPoints
+                        { position = internals.position
+                        , heading = internals.heading
+                        }
+                        polygon
                 }
 
         CircleShape circle ->
