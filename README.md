@@ -12,9 +12,10 @@ A simple physics engine in [Elm](https://elm-lang.org) for games and simulations
 - [x] Friction and maximum velocity
 - [x] Collision detection for circles
 - [x] Collision detection for polygons
+- [x] Collision detection for polygons & circles
 - [x] Collision response (removal)
-- [ ] Collision response (elastic)
 - [x] Collision response (custom)
+- [ ] Collision response (elastic)
 
 ### Issues
 1. Incorrect translation between world units and screen units in example

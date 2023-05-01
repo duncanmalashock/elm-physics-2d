@@ -234,12 +234,9 @@ createPlayerBullet isFiring world =
 
                         newBullet : Physics2d.Object.Object
                         newBullet =
-                            Physics2d.Object.fromPolygon
+                            Physics2d.Object.fromCircle
                                 { position = Physics2d.Object.position player
-                                , polygon =
-                                    Physics2d.Polygon.hexagon
-                                        { radius = Length.meters 0.3
-                                        }
+                                , radius = Length.meters 0.3
                                 }
                                 |> Physics2d.Object.setVelocity initialVelocity
                     in

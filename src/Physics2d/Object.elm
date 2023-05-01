@@ -191,75 +191,15 @@ polygonsAreColliding ( internals1, polygon1 ) ( internals2, polygon2 ) =
                 , heading = internals2.heading
                 }
                 polygon2
-
-        allVertices : List (Point2d.Point2d Length.Meters TopLeft)
-        allVertices =
-            polygon1Vertices ++ polygon2Vertices
-
-        projectedMinAndMax :
-            Axis2d.Axis2d Length.Meters TopLeft
-            -> List (Point2d.Point2d Length.Meters TopLeft)
-            ->
-                Maybe
-                    { min : Quantity.Quantity Float Length.Meters
-                    , max : Quantity.Quantity Float Length.Meters
-                    }
-        projectedMinAndMax axis points =
-            let
-                allPointsProjected : List (Quantity.Quantity Float Length.Meters)
-                allPointsProjected =
-                    -- project vertices onto the axis
-                    points
-                        |> List.map (Point2d.signedDistanceAlong axis)
-
-                -- get the min and max for both sets of projected vertices
-                maybeMin : Maybe (Quantity.Quantity Float Length.Meters)
-                maybeMin =
-                    Quantity.minimum allPointsProjected
-
-                maybeMax : Maybe (Quantity.Quantity Float Length.Meters)
-                maybeMax =
-                    Quantity.maximum allPointsProjected
-            in
-            Maybe.map2
-                (\min max ->
-                    { min = min
-                    , max = max
-                    }
-                )
-                maybeMin
-                maybeMax
-
-        projectedMaxAndMinAreSeparate :
-            { min : Quantity.Quantity number Length.Meters
-            , max : Quantity.Quantity number Length.Meters
-            }
-            ->
-                { min : Quantity.Quantity number Length.Meters
-                , max : Quantity.Quantity number Length.Meters
-                }
-            -> Bool
-        projectedMaxAndMinAreSeparate minMax1 minMax2 =
-            (minMax2.max |> Quantity.lessThanOrEqualTo minMax1.min)
-                || (minMax1.max |> Quantity.lessThanOrEqualTo minMax2.min)
-
-        areSeparableForAxis :
-            Axis2d.Axis2d Length.Meters TopLeft
-            -> Maybe Bool
-        areSeparableForAxis axis =
-            let
-                maybeMinMax1 =
-                    projectedMinAndMax axis polygon1Vertices
-
-                maybeMinMax2 =
-                    projectedMinAndMax axis polygon2Vertices
-            in
-            Maybe.map2 projectedMaxAndMinAreSeparate
-                maybeMinMax1
-                maybeMinMax2
     in
     -- if not true for any axis, polygons are colliding
-    List.filterMap areSeparableForAxis allAxes
+    List.filterMap
+        (\axis ->
+            Maybe.map2 (areSeparableForAxis axis)
+                (projectedPolygonMinAndMax axis { vertices = polygon1Vertices })
+                (projectedPolygonMinAndMax axis { vertices = polygon2Vertices })
+        )
+        allAxes
         |> List.any identity
         |> not
 
@@ -269,8 +209,133 @@ polygonAndCircleAreColliding :
     -> ( Internals, Physics2d.Circle.Circle )
     -> Bool
 polygonAndCircleAreColliding ( internals1, polygon ) ( internals2, circle ) =
-    -- TODO: implement polygon-against-circle collision detection
-    False
+    let
+        polygonSides : List (LineSegment2d.LineSegment2d Length.Meters TopLeft)
+        polygonSides =
+            Physics2d.Polygon.toLineSegments
+                { position = internals1.position
+                , heading = internals1.heading
+                }
+                polygon
+
+        allAxes : List (Axis2d.Axis2d Length.Meters TopLeft)
+        allAxes =
+            polygonSides
+                -- get the normal of each side
+                |> List.filterMap LineSegment2d.perpendicularDirection
+                |> List.map
+                    (\direction ->
+                        -- create an axis from each normal
+                        Axis2d.withDirection direction Point2d.origin
+                    )
+
+        polygonVertices : List (Point2d.Point2d Length.Meters TopLeft)
+        polygonVertices =
+            Physics2d.Polygon.toPoints
+                { position = internals1.position
+                , heading = internals1.heading
+                }
+                polygon
+    in
+    -- if not true for any axis, circle and polygon are colliding
+    List.filterMap
+        (\axis ->
+            Maybe.map2 (areSeparableForAxis axis)
+                (projectedPolygonMinAndMax axis
+                    { vertices = polygonVertices
+                    }
+                )
+                (projectedCircleMinAndMax axis
+                    { center = internals2.position
+                    , radius = Physics2d.Circle.radius circle
+                    }
+                    |> Just
+                )
+        )
+        allAxes
+        |> List.any identity
+        |> not
+
+
+projectedPolygonMinAndMax :
+    Axis2d.Axis2d Length.Meters TopLeft
+    -> { vertices : List (Point2d.Point2d Length.Meters TopLeft) }
+    ->
+        Maybe
+            { min : Quantity.Quantity Float Length.Meters
+            , max : Quantity.Quantity Float Length.Meters
+            }
+projectedPolygonMinAndMax axis { vertices } =
+    let
+        allPointsProjected : List (Quantity.Quantity Float Length.Meters)
+        allPointsProjected =
+            -- project vertices onto the axis
+            vertices
+                |> List.map (Point2d.signedDistanceAlong axis)
+
+        -- get the min and max for both sets of projected vertices
+        maybeMin : Maybe (Quantity.Quantity Float Length.Meters)
+        maybeMin =
+            Quantity.minimum allPointsProjected
+
+        maybeMax : Maybe (Quantity.Quantity Float Length.Meters)
+        maybeMax =
+            Quantity.maximum allPointsProjected
+    in
+    Maybe.map2
+        (\min max ->
+            { min = min
+            , max = max
+            }
+        )
+        maybeMin
+        maybeMax
+
+
+projectedCircleMinAndMax :
+    Axis2d.Axis2d Length.Meters TopLeft
+    ->
+        { center : Point2d.Point2d Length.Meters TopLeft
+        , radius : Length.Length
+        }
+    ->
+        { min : Quantity.Quantity Float Length.Meters
+        , max : Quantity.Quantity Float Length.Meters
+        }
+projectedCircleMinAndMax axis { center, radius } =
+    let
+        centerPointProjected : Quantity.Quantity Float Length.Meters
+        centerPointProjected =
+            Point2d.signedDistanceAlong axis center
+
+        -- get the min and max for both sets of projected vertices
+        min : Quantity.Quantity Float Length.Meters
+        min =
+            Quantity.minus radius centerPointProjected
+
+        max : Quantity.Quantity Float Length.Meters
+        max =
+            Quantity.plus radius centerPointProjected
+    in
+    { min = min
+    , max = max
+    }
+
+
+areSeparableForAxis :
+    Axis2d.Axis2d Length.Meters TopLeft
+    ->
+        { min : Quantity.Quantity Float Length.Meters
+        , max : Quantity.Quantity Float Length.Meters
+        }
+    ->
+        { min : Quantity.Quantity Float Length.Meters
+        , max : Quantity.Quantity Float Length.Meters
+        }
+    -> Bool
+areSeparableForAxis axis minMax1 minMax2 =
+    (minMax2.max |> Quantity.lessThanOrEqualTo minMax1.min)
+        || (minMax1.max |> Quantity.lessThanOrEqualTo minMax2.min)
 
 
 fromPolygon :
