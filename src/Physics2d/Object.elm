@@ -269,6 +269,7 @@ polygonAndCircleAreColliding :
     -> ( Internals, Physics2d.Circle.Circle )
     -> Bool
 polygonAndCircleAreColliding ( internals1, polygon ) ( internals2, circle ) =
+    -- TODO: implement polygon-against-circle collision detection
     False
 
 
