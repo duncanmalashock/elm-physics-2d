@@ -240,8 +240,8 @@ polygonsAreColliding ( internals1, polygon1 ) ( internals2, polygon2 ) =
                 }
             -> Bool
         projectedMaxAndMinAreSeparate minMax1 minMax2 =
-            (minMax1.max |> Quantity.greaterThanOrEqualTo minMax2.min)
-                || (minMax1.min |> Quantity.lessThanOrEqualTo minMax2.max)
+            (minMax2.max |> Quantity.lessThanOrEqualTo minMax1.min)
+                || (minMax1.max |> Quantity.lessThanOrEqualTo minMax2.min)
 
         areSeparableForAxis :
             Axis2d.Axis2d Length.Meters TopLeft
@@ -250,7 +250,6 @@ polygonsAreColliding ( internals1, polygon1 ) ( internals2, polygon2 ) =
             let
                 maybeMinMax1 =
                     projectedMinAndMax axis polygon1Vertices
-                        |> Debug.log "maybeMinMax1"
 
                 maybeMinMax2 =
                     projectedMinAndMax axis polygon2Vertices
@@ -258,13 +257,11 @@ polygonsAreColliding ( internals1, polygon1 ) ( internals2, polygon2 ) =
             Maybe.map2 projectedMaxAndMinAreSeparate
                 maybeMinMax1
                 maybeMinMax2
-                |> Debug.log "called areSeparableForAxis"
     in
     -- if not true for any axis, polygons are colliding
     List.filterMap areSeparableForAxis allAxes
         |> List.any identity
         |> not
-        |> Debug.log "called polygonsAreColliding"
 
 
 polygonAndCircleAreColliding :

@@ -187,7 +187,7 @@ update msg model =
                     Physics2d.Object.fromPolygon
                         { position = newPosition
                         , polygon =
-                            Physics2d.Polygon.square
+                            Physics2d.Polygon.hexagon
                                 { radius = Length.meters 3
                                 }
                         }
@@ -237,7 +237,7 @@ createPlayerBullet isFiring world =
                             Physics2d.Object.fromPolygon
                                 { position = Physics2d.Object.position player
                                 , polygon =
-                                    Physics2d.Polygon.square
+                                    Physics2d.Polygon.hexagon
                                         { radius = Length.meters 0.3
                                         }
                                 }
@@ -254,7 +254,7 @@ createPlayerBullet isFiring world =
 createNewAsteroids : Bool -> Cmd Msg
 createNewAsteroids shouldCreateNewAsteroids =
     if shouldCreateNewAsteroids then
-        List.repeat 1
+        List.repeat 6
             (Random.generate NewAsteroidAngleGenerated (Random.float 0 1))
             |> Cmd.batch
 
